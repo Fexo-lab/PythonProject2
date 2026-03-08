@@ -90,9 +90,32 @@ class EvolutionCore:
             total_trades = len(long_idx) + len(short_idx)
             total_pips_train = long_total_pips + short_total_pips
             
-            # Fitness für TRAIN: Pips - Strafe
+            # === NEUE FITNESS LOGIK für TRAIN (ähnlich wie TEST) ===
             if total_trades > 0:
-                train_fit = total_pips_train - (total_trades * punishment_pips)
+                # Win Rate im Training
+                total_winners = long_winners + short_winners
+                train_wr = (total_winners / total_trades) * 100
+                
+                # Profit Factor im Training
+                all_train_pips = np.concatenate([long_pips, short_pips]) if len(long_pips) > 0 or len(short_pips) > 0 else np.array([])
+                train_winners = all_train_pips[all_train_pips > 0]
+                train_losers = all_train_pips[all_train_pips < 0]
+                
+                if len(train_winners) > 0 and len(train_losers) > 0:
+                    train_avg_win = np.mean(train_winners)
+                    train_avg_loss = abs(np.mean(train_losers))
+                    train_profit_factor = train_avg_win / train_avg_loss if train_avg_loss > 0 else 1.0
+                else:
+                    train_profit_factor = 1.0 if len(train_winners) > 0 else 0.0
+                
+                train_fit = total_pips_train * 0.3  # Actual Pips zu 30%
+                train_fit += max(0, (train_wr - 50) * 100)  # Win Rate Bonus
+                train_fit += max(0, (train_profit_factor - 1.0) * 500)  # Profit Factor Bonus
+                
+                if total_trades >= 100:
+                    train_fit += 1000
+                elif total_trades >= 50:
+                    train_fit += 500
             else:
                 train_fit = -10000  # Keine Trades = sehr schlecht
 
@@ -120,14 +143,13 @@ class EvolutionCore:
             t_total_trades = len(t_long_idx) + len(t_short_idx)
             t_total_pips = t_long_total_pips + t_short_total_pips
             
-            # Fitness für TEST: Out-of-Sample Performance ist wichtiger!
+            # === NEUE FITNESS LOGIK: Profit Factor & Win Rate fokussiert ===
             if t_total_trades > 0:
-                test_fit = t_total_pips - (t_total_trades * punishment_pips)
-                # Win Rate: (Gewinnende Trades / Gesamte Trades) * 100
+                # Win Rate
                 t_total_winners = t_long_winners + t_short_winners
                 win_rate = (t_total_winners / t_total_trades) * 100
                 
-                # Bonus/Malus: Profit Factor (Gewinn-Verlust-Verhältnis)
+                # Profit Factor Berechnung
                 all_pips = np.concatenate([t_long_pips, t_short_pips]) if len(t_long_pips) > 0 or len(t_short_pips) > 0 else np.array([])
                 winners = all_pips[all_pips > 0]
                 losers = all_pips[all_pips < 0]
@@ -136,10 +158,30 @@ class EvolutionCore:
                     avg_win = np.mean(winners)
                     avg_loss = abs(np.mean(losers))
                     profit_factor = avg_win / avg_loss if avg_loss > 0 else 1.0
-                    # Bonus für guten Profit Factor
-                    test_fit = test_fit + (profit_factor * 50)
                 else:
                     profit_factor = 1.0 if len(winners) > 0 else 0.0
+                
+                # NEUE FITNESS FORMEL (statt einfacher Pips Bestrafung):
+                # 1. Basis: Actual Pips (nur 0.3x gewichtet, da zu volatil)
+                # 2. +Bonus: Win Rate über 50% (jedes % extra = +100 points)
+                # 3. +Bonus: Profit Factor über 1.0 (jede 0.1x = +500 points)
+                # 4. +Basis: Trade Count (nur 20 trades minimum für Signifikanz)
+                
+                test_fit = t_total_pips * 0.3  # Actual Pips zählen, aber nur zu 30%
+                
+                # Win Rate Bonus: 50% = 0 points, 60% = 1000 points, 70% = 2000 points
+                win_rate_bonus = max(0, (win_rate - 50) * 100)
+                test_fit += win_rate_bonus
+                
+                # Profit Factor Bonus: 1.0 = 0 points, 1.5 = 250 points, 2.0 = 500 points
+                profit_factor_bonus = max(0, (profit_factor - 1.0) * 500)
+                test_fit += profit_factor_bonus
+                
+                # Trade Count: Mehr Trades = höheres Vertrauen (aber nicht unbegrenzt)
+                if t_total_trades >= 100:
+                    test_fit += 1000  # Bonus für statistische Signifikanz
+                elif t_total_trades >= 50:
+                    test_fit += 500
             else:
                 test_fit = -10000
                 win_rate = 0.0
