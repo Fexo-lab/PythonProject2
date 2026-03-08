@@ -34,3 +34,10 @@ UI_TITLE = "AI Quantum Trader Pro v1.0"
 # Timeouts & Delays
 STREAMLIT_STARTUP_DELAY = 4  # Sekunden
 API_TIMEOUT = 5  # Sekunden
+
+# Model Quality Thresholds
+MIN_TRADES_FOR_SIGNIFICANCE = 50  # Weniger als 50 Trades = nicht aussagekräftig
+OVERFIT_THRESHOLD = 0.3  # Wenn (train_fit - test_fit) / abs(test_fit) > 0.3 = overfitting
+REALISTIC_WR_MIN = 30.0  # Win Rate sollte nicht unter 30% sein (unrealistisch)
+REALISTIC_WR_MAX = 70.0  # Win Rate sollte nicht über 70% sein (zu optimistisch)
+REALISTIC_PF_MIN = 0.8  # Profit Factor unter 0.8 = nicht sinnvoll

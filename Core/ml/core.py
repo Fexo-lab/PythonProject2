@@ -189,6 +189,27 @@ class EvolutionCore:
 
             # === GESAMT FITNESS: 70% Test, 30% Train ===
             total_fit = (0.7 * test_fit) + (0.3 * train_fit)
+            
+            # === QUALITY METRICS ===
+            from Core.config import OVERFIT_THRESHOLD, MIN_TRADES_FOR_SIGNIFICANCE, REALISTIC_WR_MIN, REALISTIC_WR_MAX, REALISTIC_PF_MIN
+            
+            # Overfitting Detection
+            overfitting_ratio = abs(train_fit - test_fit) / (abs(test_fit) + 1)
+            is_overfitting = overfitting_ratio > OVERFIT_THRESHOLD
+            
+            # Statistical Significance
+            is_significant = t_total_trades >= MIN_TRADES_FOR_SIGNIFICANCE
+            
+            # Realistic Check
+            is_realistic = (REALISTIC_WR_MIN <= win_rate <= REALISTIC_WR_MAX) and (profit_factor >= REALISTIC_PF_MIN)
+            
+            # Feature Importance (größte Weights zuerst)
+            weight_importance = np.abs(weights / np.sum(np.abs(weights)) * 100)
+            
+            # Quality Score (0-1)
+            quality_score = (1.0 if not is_overfitting else 0.5) * \
+                           (1.0 if is_significant else 0.7) * \
+                           (1.0 if is_realistic else 0.5)
 
             fitness_scores.append({
                 'total_fit': total_fit, 
@@ -217,7 +238,14 @@ class EvolutionCore:
                 'test_short_winners': t_short_winners,
                 'test_short_total_trades': len(t_short_idx),
                 'test_short_total_pips': t_short_total_pips,
-                'profit_factor': profit_factor
+                'profit_factor': profit_factor,
+                # QUALITY METRICS
+                'overfitting_ratio': overfitting_ratio,
+                'is_overfitting': is_overfitting,
+                'is_significant': is_significant,
+                'is_realistic': is_realistic,
+                'quality_score': quality_score,
+                'feature_importance': weight_importance.tolist()
             })
 
         # Sortieren nach Fitness

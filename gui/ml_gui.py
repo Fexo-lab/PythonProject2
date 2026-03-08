@@ -37,8 +37,16 @@ def display_ml_training_page(params=None):
 
     # --- KONFIGURATION ---
     col1, col2 = st.columns(2)
-    safety_cap_pips = col1.slider("Maximaler Safety SL (Pips)", 50, 1000, 300)
-    punishment_pips = col2.slider("Einstiegs-Punishment (Pips)", 0, 100, 25)
+    safety_cap_pips = col1.slider(
+        "Maximaler Safety SL (Pips)", 
+        50, 1000, 300,
+        help="Stop-Loss Abstand. Größer = längere Trades, riskanter. Kleinere = schnellerer Exit, weniger Verlust"
+    )
+    punishment_pips = col2.slider(
+        "Einstiegs-Punishment (Pips)", 
+        0, 100, 25,
+        help="⚠️ DEPRECATED: Wird nicht mehr wirklich verwendet (neue Fitness-Formel nutzt Win Rate + Profit Factor)"
+    )
 
     csv_files = [f for f in os.listdir(DATASET_DIR) if f.endswith('.csv')]
     if not csv_files:
@@ -110,10 +118,20 @@ def display_ml_training_page(params=None):
             # --- 1. HEADER ---
             with header_spot.container():
                 st.markdown(f"#### 🧬 Evolution aktiv... (Stagnation: {stagnation_counter})")
-                c1, c2, c3 = st.columns(3)
+                c1, c2, c3, c4 = st.columns(4)
                 c1.metric("Beste Fitness", f"{core.best_fit:,.0f}", delta=record_label if is_better else None)
                 c2.metric("Winrate (Test)", f"{curr['wr']:.1f}%")
                 c3.metric("Trades (Train)", f"L:{curr['lw']} S:{curr['sw']}")
+                c4.metric("Quality Score", f"{curr.get('quality_score', 0):.1%}", 
+                         help="Kombination aus Overfitting, Signifikanz & Realismus (0-100%)")
+                
+                # === QUALITY WARNINGS ===
+                if curr.get('is_overfitting', False):
+                    st.warning(f"⚠️ Overfitting erkannt (Ratio: {curr.get('overfitting_ratio', 0):.2f}). Train zu viel besser als Test!")
+                if not curr.get('is_significant', False):
+                    st.info(f"ℹ️ Zu wenige Trades ({curr.get('test_long_total_trades', 0) + curr.get('test_short_total_trades', 0)}) für statistische Signifikanz (Min: 50)")
+                if not curr.get('is_realistic', False):
+                    st.warning(f"⚠️ Win Rate {curr['wr']:.1f}% könnte unrealistisch sein. Erwartung: 30-70%")
 
             # --- 2. LOG-BUCH (MIT STATUS & TRADES) ---
             if is_better or cycle % 20 == 0:
