@@ -64,36 +64,116 @@ class EvolutionCore:
             )
             model.fit(X_train_scaled, y_train)
 
-            # Vorhersage via predict_proba
+            # === TRAIN-SET EVALUIERUNG ===
             probs = model.predict_proba(X_train_scaled)
             if probs.shape[1] > 1:
                 preds_train = model.classes_[np.argmax(probs, axis=1)]
             else:
                 preds_train = np.zeros(len(X_train), dtype=int)
-            tr_idx = np.where(preds_train > 0)[0]
-
-            # Fitness-Berechnung
-            if len(tr_idx) >= 1:
-                train_fit = np.sum(pips_train[tr_idx]) - (len(tr_idx) * punishment_pips)
-                t_probs = model.predict_proba(X_test_scaled)
-                if t_probs.shape[1] > 1:
-                    t_preds = model.classes_[np.argmax(t_probs, axis=1)]
-                else:
-                    t_preds = np.zeros(len(X_test), dtype=int)
-                t_idx = np.where(t_preds > 0)[0]
-                test_fit = np.sum(pips_test[t_idx]) if len(t_idx) > 0 else 0
-                wr = (np.sum((t_preds[t_idx] == y_test.values[t_idx])) / len(t_idx) * 100) if len(t_idx) > 0 else 0
-                total_fit = train_fit + test_fit
+            
+            # Separieren: Long (1) und Short (2) Trades
+            long_idx = np.where(preds_train == 1)[0]
+            short_idx = np.where(preds_train == 2)[0]
+            
+            # Long Statistiken
+            long_pips = pips_train[long_idx] if len(long_idx) > 0 else np.array([])
+            long_winners = np.sum(long_pips > 0) if len(long_pips) > 0 else 0
+            long_total_pips = np.sum(long_pips) if len(long_pips) > 0 else 0
+            
+            # Short Statistiken
+            short_pips = pips_train[short_idx] if len(short_idx) > 0 else np.array([])
+            short_winners = np.sum(short_pips > 0) if len(short_pips) > 0 else 0
+            short_total_pips = np.sum(short_pips) if len(short_pips) > 0 else 0
+            
+            total_trades = len(long_idx) + len(short_idx)
+            total_pips_train = long_total_pips + short_total_pips
+            
+            # Fitness für TRAIN: Pips - Strafe
+            if total_trades > 0:
+                train_fit = total_pips_train - (total_trades * punishment_pips)
             else:
-                probs = model.predict_proba(X_train_scaled)
-                conf = np.max(probs[:, 1:]) if probs.shape[1] > 1 else 0
-                total_fit = -10000 + (conf * 100)
-                train_fit, wr = total_fit, 0
+                train_fit = -10000  # Keine Trades = sehr schlecht
+
+            # === TEST-SET EVALUIERUNG ===
+            t_probs = model.predict_proba(X_test_scaled)
+            if t_probs.shape[1] > 1:
+                t_preds = model.classes_[np.argmax(t_probs, axis=1)]
+            else:
+                t_preds = np.zeros(len(X_test), dtype=int)
+            
+            # Separieren: Long und Short im Test-Set
+            t_long_idx = np.where(t_preds == 1)[0]
+            t_short_idx = np.where(t_preds == 2)[0]
+            
+            # Long Statistiken im Test-Set
+            t_long_pips = pips_test[t_long_idx] if len(t_long_idx) > 0 else np.array([])
+            t_long_winners = np.sum(t_long_pips > 0) if len(t_long_pips) > 0 else 0
+            t_long_total_pips = np.sum(t_long_pips) if len(t_long_pips) > 0 else 0
+            
+            # Short Statistiken im Test-Set
+            t_short_pips = pips_test[t_short_idx] if len(t_short_idx) > 0 else np.array([])
+            t_short_winners = np.sum(t_short_pips > 0) if len(t_short_pips) > 0 else 0
+            t_short_total_pips = np.sum(t_short_pips) if len(t_short_pips) > 0 else 0
+            
+            t_total_trades = len(t_long_idx) + len(t_short_idx)
+            t_total_pips = t_long_total_pips + t_short_total_pips
+            
+            # Fitness für TEST: Out-of-Sample Performance ist wichtiger!
+            if t_total_trades > 0:
+                test_fit = t_total_pips - (t_total_trades * punishment_pips)
+                # Win Rate: (Gewinnende Trades / Gesamte Trades) * 100
+                t_total_winners = t_long_winners + t_short_winners
+                win_rate = (t_total_winners / t_total_trades) * 100
+                
+                # Bonus/Malus: Profit Factor (Gewinn-Verlust-Verhältnis)
+                all_pips = np.concatenate([t_long_pips, t_short_pips]) if len(t_long_pips) > 0 or len(t_short_pips) > 0 else np.array([])
+                winners = all_pips[all_pips > 0]
+                losers = all_pips[all_pips < 0]
+                
+                if len(winners) > 0 and len(losers) > 0:
+                    avg_win = np.mean(winners)
+                    avg_loss = abs(np.mean(losers))
+                    profit_factor = avg_win / avg_loss if avg_loss > 0 else 1.0
+                    # Bonus für guten Profit Factor
+                    test_fit = test_fit + (profit_factor * 50)
+                else:
+                    profit_factor = 1.0 if len(winners) > 0 else 0.0
+            else:
+                test_fit = -10000
+                win_rate = 0.0
+                profit_factor = 0.0
+
+            # === GESAMT FITNESS: 70% Test, 30% Train ===
+            total_fit = (0.7 * test_fit) + (0.3 * train_fit)
 
             fitness_scores.append({
-                'total_fit': total_fit, 'fit': train_fit, 'weights': weights, 'biases': biases,
-                'max_depth': max_depth, 'n_estimators': n_estimators, 'model': model,
-                'lw': np.sum(preds_train == 1), 'sw': np.sum(preds_train == 2), 'wr': wr
+                'total_fit': total_fit, 
+                'test_fit': test_fit,
+                'train_fit': train_fit,
+                'fit': train_fit,  # Für Kompatibilität
+                'weights': weights, 
+                'biases': biases,
+                'max_depth': max_depth, 
+                'n_estimators': n_estimators, 
+                'model': model,
+                # RÜCKWÄRTS-KOMPATIBLE Felder (für GUI)
+                'lw': len(long_idx),      # Long Trade Count
+                'sw': len(short_idx),     # Short Trade Count
+                'wr': win_rate,           # Win Rate %
+                # NEUE DETAILLIERTE Felder
+                'long_winners': long_winners,
+                'long_total_trades': len(long_idx),
+                'long_total_pips': long_total_pips,
+                'short_winners': short_winners,
+                'short_total_trades': len(short_idx),
+                'short_total_pips': short_total_pips,
+                'test_long_winners': t_long_winners,
+                'test_long_total_trades': len(t_long_idx),
+                'test_long_total_pips': t_long_total_pips,
+                'test_short_winners': t_short_winners,
+                'test_short_total_trades': len(t_short_idx),
+                'test_short_total_pips': t_short_total_pips,
+                'profit_factor': profit_factor
             })
 
         # Sortieren nach Fitness
@@ -110,7 +190,9 @@ class EvolutionCore:
                     'biases': curr['biases'].tolist(),
                     'max_depth': int(curr['max_depth']),
                     'n_estimators': int(curr['n_estimators']),
-                    'fitness': self.best_fit
+                    'fitness': self.best_fit,
+                    'test_fit': curr['test_fit'],
+                    'train_fit': curr['train_fit']
                 }, f)
 
         # Evolution

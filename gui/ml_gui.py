@@ -112,17 +112,20 @@ def display_ml_training_page(params=None):
                 st.markdown(f"#### 🧬 Evolution aktiv... (Stagnation: {stagnation_counter})")
                 c1, c2, c3 = st.columns(3)
                 c1.metric("Beste Fitness", f"{core.best_fit:,.0f}", delta=record_label if is_better else None)
-                c2.metric("Winrate", f"{curr['wr']:.1f}%")
-                c3.metric("Trades", curr['lw'] + curr['sw'])
+                c2.metric("Winrate (Test)", f"{curr['wr']:.1f}%")
+                c3.metric("Trades (Train)", f"L:{curr['lw']} S:{curr['sw']}")
 
             # --- 2. LOG-BUCH (MIT STATUS & TRADES) ---
             if is_better or cycle % 20 == 0:
                 dna_entry = {
                     "Cycle": cycle,
                     "Status": "⭐ REKORD" if is_better else "🔄 Update",
-                    "Fit": f"{curr['fit']:,.0f}",
+                    "Total-Fit": f"{curr['total_fit']:,.0f}",
+                    "Test-Fit": f"{curr['test_fit']:,.0f}",
                     "WR%": f"{curr['wr']:.1f}%",
-                    "Trades": curr['lw'] + curr['sw']
+                    "PF": f"{curr.get('profit_factor', 0):.2f}",
+                    "L": f"{curr['long_total_trades']}T/{curr['long_winners']}W",
+                    "S": f"{curr['short_total_trades']}T/{curr['short_winners']}W"
                 }
                 for f_idx, f_name in enumerate(FEATURE_COLS):
                     dna_entry[f_name] = round(curr['weights'][f_idx], 2)
