@@ -10,14 +10,30 @@ class EvolutionCore:
         self.population = self._initialize_population()
 
     def _initialize_population(self):
-        # Initialisierung mit 15 Random-Probanden
-        pop = [np.random.uniform(0.1, 30.0, self.features_count) for _ in range(15)]
+        # DNA besteht aus: 9 Weights + 9 Biases + Hyperparameter (max_depth, n_estimators)
+        pop = []
+        for _ in range(15):
+            dna = {
+                'weights': np.random.uniform(0.1, 3.0, self.features_count),      # Relative Multiplikatoren!
+                'biases': np.random.uniform(-1.0, 1.0, self.features_count),     # Additive Offsets
+                'max_depth': np.random.randint(4, 16),
+                'n_estimators': np.random.randint(10, 100)
+            }
+            pop.append(dna)
+        
+        # Beste bisherige DNA laden
         if os.path.exists(self.dna_path):
             try:
                 with open(self.dna_path, 'r') as f:
-                    d = json.load(f)
-                    pop[0] = np.array(d['weights'])
-                    self.best_fit = d.get('fitness', -1e9)
+                    best_dna = json.load(f)
+                    if 'weights' in best_dna:
+                        pop[0] = {
+                            'weights': np.array(best_dna.get('weights', pop[0]['weights'])),
+                            'biases': np.array(best_dna.get('biases', pop[0]['biases'])),
+                            'max_depth': best_dna.get('max_depth', pop[0]['max_depth']),
+                            'n_estimators': best_dna.get('n_estimators', pop[0]['n_estimators'])
+                        }
+                        self.best_fit = best_dna.get('fitness', -1e9)
             except:
                 pass
         return pop
@@ -29,15 +45,28 @@ class EvolutionCore:
 
         fitness_scores = []
 
-        for weights in self.population:
-            # Schnelles Modell für die Evolution
-            model = RandomForestClassifier(n_estimators=30, max_depth=8, n_jobs=-1, random_state=None)
-            model.fit(X_train.values * weights, y_train)
+        for dna in self.population:
+            # Wende Weights und Biases auf die Daten an
+            weights = dna['weights']
+            biases = dna['biases']
+            max_depth = dna['max_depth']
+            n_estimators = dna['n_estimators']
+            
+            X_train_scaled = (X_train.values * weights) + biases
+            X_test_scaled = (X_test.values * weights) + biases
 
-            # Vorhersage via predict_proba für mehr Kontrolle
-            probs = model.predict_proba(X_train.values * weights)
+            # Modell mit evolvierten Hyperparametern
+            model = RandomForestClassifier(
+                n_estimators=int(n_estimators), 
+                max_depth=int(max_depth), 
+                n_jobs=-1, 
+                random_state=None
+            )
+            model.fit(X_train_scaled, y_train)
+
+            # Vorhersage via predict_proba
+            probs = model.predict_proba(X_train_scaled)
             if probs.shape[1] > 1:
-                # Nutze model.classes_ um korrekte Labels zu bekommen (nicht nur Index)
                 preds_train = model.classes_[np.argmax(probs, axis=1)]
             else:
                 preds_train = np.zeros(len(X_train), dtype=int)
@@ -46,7 +75,7 @@ class EvolutionCore:
             # Fitness-Berechnung
             if len(tr_idx) >= 1:
                 train_fit = np.sum(pips_train[tr_idx]) - (len(tr_idx) * punishment_pips)
-                t_probs = model.predict_proba(X_test.values * weights)
+                t_probs = model.predict_proba(X_test_scaled)
                 if t_probs.shape[1] > 1:
                     t_preds = model.classes_[np.argmax(t_probs, axis=1)]
                 else:
@@ -56,14 +85,14 @@ class EvolutionCore:
                 wr = (np.sum((t_preds[t_idx] == y_test.values[t_idx])) / len(t_idx) * 100) if len(t_idx) > 0 else 0
                 total_fit = train_fit + test_fit
             else:
-                # Wenn keine Trades, nutzen wir die Wahrscheinlichkeit als "Geruch" für die Evolution
-                probs = model.predict_proba(X_train.values * weights)
+                probs = model.predict_proba(X_train_scaled)
                 conf = np.max(probs[:, 1:]) if probs.shape[1] > 1 else 0
                 total_fit = -10000 + (conf * 100)
                 train_fit, wr = total_fit, 0
 
             fitness_scores.append({
-                'total_fit': total_fit, 'fit': train_fit, 'weights': weights, 'model': model,
+                'total_fit': total_fit, 'fit': train_fit, 'weights': weights, 'biases': biases,
+                'max_depth': max_depth, 'n_estimators': n_estimators, 'model': model,
                 'lw': np.sum(preds_train == 1), 'sw': np.sum(preds_train == 2), 'wr': wr
             })
 
@@ -76,39 +105,88 @@ class EvolutionCore:
             self.best_fit = curr['total_fit']
             joblib.dump(curr['model'], self.model_path)
             with open(self.dna_path, 'w') as f:
-                json.dump({'weights': curr['weights'].tolist(), 'fitness': self.best_fit}, f)
+                json.dump({
+                    'weights': curr['weights'].tolist(),
+                    'biases': curr['biases'].tolist(),
+                    'max_depth': int(curr['max_depth']),
+                    'n_estimators': int(curr['n_estimators']),
+                    'fitness': self.best_fit
+                }, f)
 
-        # Evolution nach deiner Logik: 2 Eltern, 1 AVG-Kind, 12 Randoms
+        # Evolution
         self.population = self._evolve_custom(fitness_scores)
 
         return curr, is_better
 
     def _evolve_custom(self, scores):
         # 1. Die 2 besten Eltern übernehmen
-        parent1 = scores[0]['weights'].copy()
-        parent2 = scores[1]['weights'].copy()
+        parent1_dna = scores[0]
+        parent2_dna = scores[1]
 
-        # 2. Intelligentes Crossover statt einfacher Average
-        crossover_mask = np.random.rand(len(parent1)) > 0.5
-        child_crossover = np.where(crossover_mask, parent1, parent2).copy()
+        new_population = []
 
-        new_population = [parent1, parent2, child_crossover]
+        # 1. Beide Eltern direkt in die neue Generation (Elitism)
+        new_population.append({
+            'weights': parent1_dna['weights'].copy(),
+            'biases': parent1_dna['biases'].copy(),
+            'max_depth': parent1_dna['max_depth'],
+            'n_estimators': parent1_dna['n_estimators']
+        })
+        new_population.append({
+            'weights': parent2_dna['weights'].copy(),
+            'biases': parent2_dna['biases'].copy(),
+            'max_depth': parent2_dna['max_depth'],
+            'n_estimators': parent2_dna['n_estimators']
+        })
 
-        # 3. 10 aggressive mutierte Varianten
+        # 2. Intelligentes Crossover (Hybrid aus beiden Eltern)
+        crossover_mask = np.random.rand(len(parent1_dna['weights'])) > 0.5
+        child_hybrid = {
+            'weights': np.where(crossover_mask, parent1_dna['weights'], parent2_dna['weights']).copy(),
+            'biases': np.where(crossover_mask, parent1_dna['biases'], parent2_dna['biases']).copy(),
+            'max_depth': parent1_dna['max_depth'] if np.random.rand() > 0.5 else parent2_dna['max_depth'],
+            'n_estimators': parent1_dna['n_estimators'] if np.random.rand() > 0.5 else parent2_dna['n_estimators']
+        }
+        new_population.append(child_hybrid)
+
+        # 3. 10 aggressive mutierte Varianten der besten Eltern
         for i in range(10):
-            # Wähle einen Parent und mutiere ihn
-            parent = parent1 if i % 2 == 0 else parent2
-            mutation_strength = 0.15 + (i * 0.05)  # Viel aggressiver: 15%, 20%, 25%...
-            mutant = parent.copy()
-            # Mutiere 60% der Gene - viel mehr als vorher!
-            mutation_mask = np.random.rand(len(parent)) < 0.6
-            mutant[mutation_mask] *= (1 + np.random.normal(0, mutation_strength, np.sum(mutation_mask)))
-            mutant = np.clip(mutant, 0.1, 40.0)  # Werte im Bereich halten
+            parent_dna = parent1_dna if i % 2 == 0 else parent2_dna
+            
+            # Mutation stärke variiert (20-40% statt 15-30%)
+            mutation_strength = 0.2 + (i * 0.03)
+            
+            mutant = {
+                'weights': parent_dna['weights'].copy(),
+                'biases': parent_dna['biases'].copy(),
+                'max_depth': parent_dna['max_depth'],
+                'n_estimators': parent_dna['n_estimators']
+            }
+            
+            # Weights mutieren (jetzt nur 0.1-3.0 Bereich)
+            weight_mask = np.random.rand(len(mutant['weights'])) < 0.5  # 50% der Weights
+            mutant['weights'][weight_mask] *= (1 + np.random.normal(0, mutation_strength, np.sum(weight_mask)))
+            mutant['weights'] = np.clip(mutant['weights'], 0.1, 3.0)
+            
+            # Biases mutieren (-1 bis 1)
+            bias_mask = np.random.rand(len(mutant['biases'])) < 0.5
+            mutant['biases'][bias_mask] += np.random.normal(0, mutation_strength * 0.5, np.sum(bias_mask))
+            mutant['biases'] = np.clip(mutant['biases'], -1.0, 1.0)
+            
+            # Hyperparameter mutieren
+            mutant['max_depth'] = int(np.clip(mutant['max_depth'] + np.random.randint(-2, 3), 4, 16))
+            mutant['n_estimators'] = int(np.clip(mutant['n_estimators'] + np.random.randint(-10, 11), 10, 100))
+            
             new_population.append(mutant)
 
-        # 4. 2 komplett neue Probanden für Diversität
+        # 4. Nur 2 komplett neue Probanden für Diversität
         for _ in range(2):
-            random_proband = np.random.uniform(0.1, 40.0, len(parent1))
-            new_population.append(random_proband)
+            random_dna = {
+                'weights': np.random.uniform(0.1, 3.0, len(parent1_dna['weights'])),
+                'biases': np.random.uniform(-1.0, 1.0, len(parent1_dna['weights'])),
+                'max_depth': np.random.randint(4, 16),
+                'n_estimators': np.random.randint(10, 100)
+            }
+            new_population.append(random_dna)
 
         return new_population

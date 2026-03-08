@@ -10,10 +10,12 @@ def execute_trade_decision(df, model_name):
     try:
         df_processed, _ = get_feature_matrix(df)
         with open(dna_path, 'r') as f:
-            weights = np.array(json.load(f)['weights'])
+            dna = json.load(f)
+            weights = np.array(dna.get('weights', [1.0]*9))
+            biases = np.array(dna.get('biases', [0.0]*9))
 
-        # Nutzt jetzt EXAKT die 9 Spalten aus FEATURE_COLS
-        X_live = df_processed[FEATURE_COLS].tail(1).values * weights
+        # Nutzt jetzt Weights UND Biases für Feature-Skalierung
+        X_live = (df_processed[FEATURE_COLS].tail(1).values * weights) + biases
         model = joblib.load(model_path)
 
         prediction = model.predict(X_live)[0]
