@@ -1,10 +1,6 @@
-import sys
 import os
 import streamlit as st
 import datetime
-
-# Pfad-Fix für lokale Module
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from .engine.data import get_market_data, add_indicators
 from gui.chart_engine import create_trading_chart, display_terminal, display_stats, display_live_log

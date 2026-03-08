@@ -2,18 +2,7 @@ import pandas as pd
 import numpy as np
 import os
 
-# Zentrale Feature-Liste - MUSS in allen Dateien identisch sein!
-FEATURE_COLS = [
-    'returns',
-    'volatility',
-    'range',
-    'atr',
-    'ema_20_dist',
-    'ema_50_dist',
-    'ema_100_dist',
-    'rsi',
-    'volume_force'
-]
+from ..config import FEATURE_COLS, DATASETS_DIR
 
 
 def get_feature_matrix(df):
@@ -66,7 +55,7 @@ def create_simulated_training_set(csv_name, max_sl_pct):
     """
     Erstellt ein Trainings-Set mit Labels basierend auf einem dynamischen Trailing Stop.
     """
-    file_path = f"datasets/{csv_name}"
+    file_path = os.path.join(DATASETS_DIR, csv_name)
     if not os.path.exists(file_path):
         return None, None
 

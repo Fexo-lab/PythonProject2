@@ -1,11 +1,13 @@
 import os, joblib, json, numpy as np
 from sklearn.ensemble import RandomForestClassifier
+from ..config import MODELS_DIR
 
 
 class EvolutionCore:
     def __init__(self, model_name, features_count):
         self.model_name, self.features_count = model_name, features_count
-        self.model_path, self.dna_path = f"models/{model_name}.pkl", f"models/{model_name}_dna.json"
+        self.model_path = os.path.join(MODELS_DIR, f"{model_name}.pkl")
+        self.dna_path = os.path.join(MODELS_DIR, f"{model_name}_dna.json")
         self.best_fit = -1e9
         self.population = self._initialize_population()
 

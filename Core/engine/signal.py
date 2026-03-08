@@ -1,10 +1,12 @@
 import os, joblib, json, numpy as np
-from ..ml.preprocessor import get_feature_matrix, FEATURE_COLS
+from ..ml.preprocessor import get_feature_matrix
+from ..config import FEATURE_COLS, MODELS_DIR
 
 
 def execute_trade_decision(df, model_name):
     if df is None or len(df) < 100: return "WAITING", 0.0
-    model_path, dna_path = f"models/{model_name}.pkl", f"models/{model_name}_dna.json"
+    model_path = os.path.join(MODELS_DIR, f"{model_name}.pkl")
+    dna_path = os.path.join(MODELS_DIR, f"{model_name}_dna.json")
     if not os.path.exists(model_path): return "NO_MODEL", 0.0
 
     try:

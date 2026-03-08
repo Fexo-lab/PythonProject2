@@ -1,46 +1,38 @@
 import webview
 import subprocess
 import time
-import sys
 import os
-import threading
 
-# 1. Den Pfad zur app_ui.py finden
-# Das stellt sicher, dass das Skript die Datei auch findet, wenn du es aus verschiedenen Ordnern startest
+from config import STREAMLIT_PORT, STREAMLIT_HOST, UI_WIDTH, UI_HEIGHT, UI_TITLE, STREAMLIT_STARTUP_DELAY
+
+# Pfad zur app_ui.py
 current_dir = os.path.dirname(os.path.abspath(__file__))
 ui_file = os.path.join(current_dir, "app_ui.py")
 
-# 2. Streamlit im Hintergrund starten (Headless Mode)
-# Wir fügen '--server.port 8501' hinzu, um sicherzugehen, dass es immer auf demselben Port läuft
+# Streamlit im Hintergrund starten (Headless Mode)
 proc = subprocess.Popen([
     "streamlit", "run", ui_file,
     "--server.headless", "true",
-    "--server.port", "8501"
+    "--server.port", str(STREAMLIT_PORT)
 ])
 
-# Dem Server 3-5 Sekunden Zeit geben, um hochzufahren
-time.sleep(4)
-
-# Starte Auto-Fetch Thread
-fetch_thread = threading.Thread(target=auto_fetch_loop, args=(5,))
-fetch_thread.daemon = True
-fetch_thread.start()
+# Dem Server Zeit geben, um hochzufahren
+time.sleep(STREAMLIT_STARTUP_DELAY)
 
 try:
-    # 3. Das native Fenster öffnen
-    # Wir zeigen auf localhost:8501, wo unser Streamlit-Server jetzt läuft
+    # Das native Fenster öffnen
     window = webview.create_window(
-        'AI Quantum Trader Pro v1.0',
-        'http://localhost:8501',
-        width=1280,
-        height=900,
+        UI_TITLE,
+        f'http://{STREAMLIT_HOST}:{STREAMLIT_PORT}',
+        width=UI_WIDTH,
+        height=UI_HEIGHT,
         resizable=True,
-        confirm_close=True # Fragt nach, ob man wirklich beenden will
+        confirm_close=True
     )
 
     webview.start()
 
 finally:
-    # 4. Sauberes Beenden: Wenn das Fenster geschlossen wird, killen wir den Hintergrund-Server
+    # Sauberes Beenden
     proc.terminate()
     print("Trading Bot wurde sicher beendet.")
