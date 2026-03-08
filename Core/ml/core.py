@@ -1,6 +1,6 @@
 import os, joblib, json, numpy as np
 from sklearn.ensemble import RandomForestClassifier
-from ..config import MODELS_DIR
+from Core.config import MODELS_DIR
 
 
 class EvolutionCore:
@@ -41,7 +41,7 @@ class EvolutionCore:
         return pop
 
     def run_cycle(self, train_df, test_df, punishment_pips, cycle, stagnation_counter):
-        from ..config import FEATURE_COLS
+        from Core.config import FEATURE_COLS
         X_train, y_train, pips_train = train_df[FEATURE_COLS], train_df['target_label'], train_df['pip_result'].values
         X_test, y_test, pips_test = test_df[FEATURE_COLS], test_df['target_label'], test_df['pip_result'].values
 

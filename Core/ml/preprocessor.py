@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import os
 
-from ..config import FEATURE_COLS, DATASETS_DIR
+from Core.config import FEATURE_COLS, DATASETS_DIR
 
 
 def get_feature_matrix(df):

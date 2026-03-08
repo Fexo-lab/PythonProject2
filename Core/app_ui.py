@@ -1,12 +1,18 @@
 import os
+import sys
 import streamlit as st
 import datetime
 
-from .engine.data import get_market_data, add_indicators
+# Stelle sicher dass Parent-Directory im Path ist für Imports
+sys_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if sys_path not in sys.path:
+    sys.path.insert(0, sys_path)
+
+from Core.engine.data import get_market_data, add_indicators
 from gui.chart_engine import create_trading_chart, display_terminal, display_stats, display_live_log
 from gui.ml_gui import display_ml_training_page
 from gui.dataset_gui import display_dataset_page
-from .engine.signal import execute_trade_decision
+from Core.engine.signal import execute_trade_decision
 
 # App Konfiguration
 st.set_page_config(page_title="AI Quantum Trader Pro v6.2", layout="wide")

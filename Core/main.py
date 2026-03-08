@@ -8,13 +8,14 @@ from config import STREAMLIT_PORT, STREAMLIT_HOST, UI_WIDTH, UI_HEIGHT, UI_TITLE
 # Pfad zur app_ui.py
 current_dir = os.path.dirname(os.path.abspath(__file__))
 ui_file = os.path.join(current_dir, "app_ui.py")
+root_dir = os.path.dirname(current_dir)  # Parent directory für imports
 
-# Streamlit im Hintergrund starten (Headless Mode)
+# Streamlit im Hintergrund starten (mit korrektem working directory)
 proc = subprocess.Popen([
     "streamlit", "run", ui_file,
     "--server.headless", "true",
     "--server.port", str(STREAMLIT_PORT)
-])
+], cwd=root_dir)  # Set working directory to project root
 
 # Dem Server Zeit geben, um hochzufahren
 time.sleep(STREAMLIT_STARTUP_DELAY)
