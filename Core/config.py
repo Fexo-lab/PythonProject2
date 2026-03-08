@@ -37,7 +37,7 @@ API_TIMEOUT = 5  # Seconds
 
 # Model Quality Thresholds
 MIN_TRADES_FOR_SIGNIFICANCE = 50  # Less than 50 trades = not statistically valid
-OVERFIT_THRESHOLD = 0.3  # If (train_fit - test_fit) / abs(test_fit) > 0.3 = overfitting
+OVERFIT_THRESHOLD = 0.15  # Stricter: If (train_fit - test_fit) / abs(test_fit) > 0.15 = overfitting (was 0.3)
 REALISTIC_WR_MIN = 30.0  # Win Rate should not be below 30% (unrealistic)
 REALISTIC_WR_MAX = 70.0  # Win Rate should not be above 70% (too optimistic)
 REALISTIC_PF_MIN = 0.8  # Profit Factor below 0.8 = not meaningful

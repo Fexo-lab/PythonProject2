@@ -87,11 +87,18 @@ class EvolutionCore:
             X_train_scaled = (X_train.values * weights) + biases
             X_test_scaled = (X_test.values * weights) + biases
 
-            # Model with evolved hyperparameters
+            # Model with evolved hyperparameters + REGULARIZATION
+            # Limit max_depth to prevent overfitting on small datasets
+            safe_max_depth = min(int(max_depth), 10)
+            
             model = RandomForestClassifier(
-                n_estimators=int(n_estimators), 
-                max_depth=int(max_depth), 
-                n_jobs=-1, 
+                n_estimators=max(int(n_estimators), 20),
+                max_depth=safe_max_depth,
+                min_samples_leaf=5,           # Prevent single-sample leaves
+                min_samples_split=10,         # Prevent excessive splitting
+                max_features=0.7,             # Use only 70% of features per split
+                subsample=0.9,                # Use 90% of samples (row subsampling)
+                n_jobs=-1,
                 random_state=None
             )
             model.fit(X_train_scaled, y_train)
@@ -100,13 +107,18 @@ class EvolutionCore:
             train_fit, train_stats = self._evaluate_train_set(model, X_train_scaled, y_train, pips_train)
             test_fit, test_stats, win_rate, profit_factor = self._evaluate_test_set(model, X_test_scaled, y_test, pips_test)
 
-            # Calculate total fitness
+            # Calculate total fitness with OVERFITTING PENALTY
             total_fit = (0.7 * test_fit) + (0.3 * train_fit)
             
             # Calculate quality metrics
             quality_score, overfitting_ratio, is_overfitting, is_significant, is_realistic, weight_importance = self._calculate_quality_metrics(
                 train_fit, test_fit, test_stats['total_trades'], win_rate, profit_factor, weights
             )
+
+            # APPLY STRONG OVERFITTING PENALTY: Reduce fitness if overfitting detected
+            if is_overfitting:
+                overfit_penalty = 1.0 - (min(overfitting_ratio, 1.0) * 0.5)  # Max 50% penalty
+                total_fit *= overfit_penalty
 
             return {
                 'total_fit': total_fit, 
