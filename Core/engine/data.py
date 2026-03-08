@@ -39,6 +39,22 @@ def get_market_data(ticker_or_path, period="1mo", interval="1h"):
         return None
 
 
+def get_asset_news(search_term, max_results=10):
+    """Fetch latest news for an asset using yfinance."""
+    try:
+        # Try to get ticker object and news data
+        ticker = yf.Ticker(search_term)
+        news_data = ticker.news
+        
+        if news_data:
+            return news_data[:max_results]
+        else:
+            return []
+    except Exception as e:
+        print(f"News Fetch Error for {search_term}: {e}")
+        return []
+
+
 def add_indicators(df):
     if df is None or len(df) < 20: return df
 

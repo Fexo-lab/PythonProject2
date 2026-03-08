@@ -154,4 +154,5 @@ def display_news_page(selected_symbol):
             st.caption(f"{item['publisher']} | {item['date_added']}")
 
     except Exception as e:
+        st.error(f"Error loading news: {str(e)}")
         st.error(f"Error: {e}")
