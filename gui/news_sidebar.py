@@ -118,14 +118,14 @@ def display_news_page(selected_symbol):
 
     assets_data = load_live_assets()
     if not assets_data:
-        st.warning("Keine Assets gefunden.")
+        st.warning("No assets found.")
         return
 
     # Asset-Auswahl
     display_names = list(assets_data.keys())
     clean_ticker = str(selected_symbol).split('|')[0].strip()
     current_name = next((n for n, t in assets_data.items() if t == clean_ticker), display_names[0])
-    selected_display_name = st.selectbox("Fokus:", options=display_names, index=display_names.index(current_name))
+    selected_display_name = st.selectbox("Focus:", options=display_names, index=display_names.index(current_name))
 
     search_term = selected_display_name.split(' ')[0].strip()
 
@@ -143,7 +143,7 @@ def display_news_page(selected_symbol):
             # Modernisierte Layout-Syntax für 2026 [cite: 2026-03-07]
             st.area_chart(data=trend_df, x='date_added', y='sentiment_index', width='stretch')
         else:
-            st.info("Sammle Daten für Trend-Analyse...")
+            st.info("Collecting data for trend analysis...")
 
         # News Liste mit Farbindikatoren
         st.write("---")

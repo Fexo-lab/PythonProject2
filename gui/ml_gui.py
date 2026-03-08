@@ -20,14 +20,14 @@ def display_ml_training_page(params=None):
 
     st.subheader("🧠 ML Training: Walk-Forward Evolution")
 
-    # --- MODELL-VERWALTUNG ---
-    with st.expander("📂 Modell-Verwaltung", expanded=False):
+    # --- MODEL MANAGEMENT ---
+    with st.expander("📂 Model Management", expanded=False):
         all_models = [f.replace(".pkl", "") for f in os.listdir(MODEL_DIR) if f.endswith(".pkl")]
         if all_models:
             c_src, c_dest, c_do = st.columns([2, 2, 1])
-            src_model = c_src.selectbox("Quell-Modell:", all_models)
-            dest_name = c_dest.text_input("Ziel-Name:", placeholder="z.B. gold_v2")
-            if c_do.button("🚀 Klonen", width='stretch'):
+            src_model = c_src.selectbox("Source Model:", all_models)
+            dest_name = c_dest.text_input("Target Name:", placeholder="e.g. gold_v2")
+            if c_do.button("🚀 Clone", width='stretch'):
                 if dest_name:
                     shutil.copy(os.path.join(MODEL_DIR, f"{src_model}.pkl"),
                                 os.path.join(MODEL_DIR, f"{dest_name}.pkl"))
@@ -35,31 +35,31 @@ def display_ml_training_page(params=None):
 
     st.divider()
 
-    # --- KONFIGURATION ---
+    # --- CONFIGURATION ---
     col1, col2 = st.columns(2)
     safety_cap_pips = col1.slider(
-        "Maximaler Safety SL (Pips)", 
+        "Maximum Safety SL (Pips)", 
         50, 1000, 300,
-        help="Stop-Loss Abstand. Größer = längere Trades, riskanter. Kleinere = schnellerer Exit, weniger Verlust"
+        help="Stop-Loss distance. Larger = longer trades, riskier. Smaller = faster exit, less loss"
     )
     punishment_pips = col2.slider(
-        "Einstiegs-Punishment (Pips)", 
+        "Entry Punishment (Pips)", 
         0, 100, 25,
-        help="⚠️ DEPRECATED: Wird nicht mehr wirklich verwendet (neue Fitness-Formel nutzt Win Rate + Profit Factor)"
+        help="⚠️ DEPRECATED: No longer used (new fitness formula uses Win Rate + Profit Factor)"
     )
 
     csv_files = [f for f in os.listdir(DATASET_DIR) if f.endswith('.csv')]
     if not csv_files:
-        st.warning("Keine Datensätze gefunden.")
+        st.warning("No datasets found.")
         return
 
-    selected_csv = st.selectbox("Asset für Training:", csv_files)
-    new_model_name = st.text_input("Modellname:", "silver_v9_walkforward")
+    selected_csv = st.selectbox("Asset for Training:", csv_files)
+    new_model_name = st.text_input("Model Name:", "silver_v9_walkforward")
 
-    training_active = st.checkbox("🚀 Evolution starten")
+    training_active = st.checkbox("🚀 Start Evolution")
 
     if training_active:
-        with st.status("Daten werden vorbereitet...") as status:
+        with st.status("Preparing data...") as status:
             train_df, test_df = create_simulated_training_set(selected_csv, safety_cap_pips / 100000)
             if train_df is None: return
             _, features = get_feature_matrix(train_df)
@@ -117,27 +117,27 @@ def display_ml_training_page(params=None):
 
             # --- 1. HEADER ---
             with header_spot.container():
-                st.markdown(f"#### 🧬 Evolution aktiv... (Stagnation: {stagnation_counter})")
+                st.markdown(f"#### 🧬 Evolution Running... (Stagnation: {stagnation_counter})")
                 c1, c2, c3, c4 = st.columns(4)
-                c1.metric("Beste Fitness", f"{core.best_fit:,.0f}", delta=record_label if is_better else None)
-                c2.metric("Winrate (Test)", f"{curr['wr']:.1f}%")
+                c1.metric("Best Fitness", f"{core.best_fit:,.0f}", delta=record_label if is_better else None)
+                c2.metric("Win Rate (Test)", f"{curr['wr']:.1f}%")
                 c3.metric("Trades (Train)", f"L:{curr['lw']} S:{curr['sw']}")
                 c4.metric("Quality Score", f"{curr.get('quality_score', 0):.1%}", 
-                         help="Kombination aus Overfitting, Signifikanz & Realismus (0-100%)")
+                         help="Combination of Overfitting, Significance & Realism (0-100%)")
                 
                 # === QUALITY WARNINGS ===
                 if curr.get('is_overfitting', False):
-                    st.warning(f"⚠️ Overfitting erkannt (Ratio: {curr.get('overfitting_ratio', 0):.2f}). Train zu viel besser als Test!")
+                    st.warning(f"⚠️ Overfitting Detected (Ratio: {curr.get('overfitting_ratio', 0):.2f}). Training too much better than test!")
                 if not curr.get('is_significant', False):
-                    st.info(f"ℹ️ Zu wenige Trades ({curr.get('test_long_total_trades', 0) + curr.get('test_short_total_trades', 0)}) für statistische Signifikanz (Min: 50)")
+                    st.info(f"ℹ️ Too Few Trades ({curr.get('test_long_total_trades', 0) + curr.get('test_short_total_trades', 0)}) for statistical significance (Min: 50)")
                 if not curr.get('is_realistic', False):
-                    st.warning(f"⚠️ Win Rate {curr['wr']:.1f}% könnte unrealistisch sein. Erwartung: 30-70%")
+                    st.warning(f"⚠️ Win Rate {curr['wr']:.1f}% might be unrealistic. Expected: 30-70%")
 
-            # --- 2. LOG-BUCH (MIT STATUS & TRADES) ---
+            # --- 2. EVENT LOG (WITH STATUS & TRADES) ---
             if is_better or cycle % 20 == 0:
                 dna_entry = {
                     "Cycle": cycle,
-                    "Status": "⭐ REKORD" if is_better else "🔄 Update",
+                    "Status": "⭐ RECORD" if is_better else "🔄 Update",
                     "Total-Fit": f"{curr['total_fit']:,.0f}",
                     "Test-Fit": f"{curr['test_fit']:,.0f}",
                     "WR%": f"{curr['wr']:.1f}%",
@@ -152,7 +152,7 @@ def display_ml_training_page(params=None):
                 if len(event_logs) > 12: event_logs.pop()
                 log_spot.dataframe(pd.DataFrame(event_logs), width='stretch', hide_index=True)
 
-            # --- 3. DIAGRAMME ---
+            # --- 3. CHARTS ---
             if cycle % 5 == 0:
                 with chart_area.container():
                     col_l, col_r = st.columns(2)
@@ -181,4 +181,4 @@ def display_ml_training_page(params=None):
 
             time.sleep(0.01)
     else:
-        st.info("Wähle ein Asset und starte die Evolution.")
+        st.info("Choose an asset and start the evolution.")

@@ -28,20 +28,20 @@ def display_dataset_page():
 
     # --- TEIL 1: IMPORT NEUER DATEN ---
     with st.expander("📥 Neuen Datensatz herunterladen", expanded=True):
-        search_query = st.text_input("Asset suchen (z.B. Silver, Gold, BTC)", placeholder="Name eingeben...")
+        search_query = st.text_input("Search Asset (e.g. Silver, Gold, BTC)", placeholder="Enter name...")
 
         selected_ticker = None
         if search_query:
             suggestions = search_ticker(search_query)
             if suggestions:
-                choice = st.selectbox("Gefundene Symbole:", suggestions)
+                choice = st.selectbox("Found Symbols:", suggestions)
                 selected_ticker = choice.split(" | ")[0]
 
         col1, col2 = st.columns(2)
         period = col1.selectbox("Zeitraum", ["1y", "2y", "5y", "max"])
         interval = col2.selectbox("Intervall", ["1h", "1d", "15m"])
 
-        if st.button("🚀 Daten jetzt importieren"):
+        if st.button("🚀 Import Data Now"):
             if not selected_ticker:
                 st.error("Bitte wähle zuerst ein Asset aus!")
             else:
@@ -63,7 +63,7 @@ def display_dataset_page():
     st.divider()
 
     # --- TEIL 2: VORHANDENE DATEIEN VERWALTEN ---
-    st.markdown("### 📊 Vorhandene Datensätze")
+    st.markdown("### 📊 Available Datasets")
     files = [f for f in os.listdir(DATASET_DIR) if f.endswith('.csv')]
 
     if files:
@@ -74,4 +74,4 @@ def display_dataset_page():
                 os.remove(os.path.join(DATASET_DIR, file))
                 st.rerun()
     else:
-        st.info("Noch keine CSV-Dateien im Ordner 'datasets' vorhanden.")
+        st.info("No CSV files in 'datasets' folder yet.")

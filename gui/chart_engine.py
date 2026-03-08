@@ -29,27 +29,27 @@ def create_trading_chart(df):
 
 def display_live_log():
     """Zeigt die vergangenen Signale als Tabelle an."""
-    st.markdown("### 📜 Signal Logbuch")
+    st.markdown("### 📜 Signal Log")
     if st.session_state.trade_log:
         log_df = pd.DataFrame(st.session_state.trade_log)
         st.table(log_df.head(10))  # Zeigt die letzten 10 Signale
     else:
-        st.info("Noch keine Signale generiert.")
+        st.info("No signals generated yet.")
 
 
 def display_stats(df):
     if df is None or 'volatility' not in df.columns:
-        st.write("Warte auf Indikatoren...")
+        st.write("Waiting for indicators...")
         return
     st.markdown("---")
     # Sicherer Zugriff mit Fallback
     vol = df['volatility'].iloc[-1] if not pd.isna(df['volatility'].iloc[-1]) else 0
     rsi = df['rsi'].iloc[-1] if not pd.isna(df['rsi'].iloc[-1]) else 50
-    st.write(f"Volatilität: {round(vol, 5)}")
+    st.write(f"Volatility: {round(vol, 5)}")
     st.write(f"RSI: {round(rsi, 2)}")
 
 
 def display_terminal(placeholder):
     # Einfacher Symbol-Wechsler
-    sym = st.text_input("Symbol wechseln (z.B. SI=F):", placeholder)
+    sym = st.text_input("Change Symbol (e.g. SI=F):", placeholder)
     return sym if sym else None
