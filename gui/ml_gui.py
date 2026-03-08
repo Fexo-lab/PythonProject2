@@ -63,7 +63,7 @@ def display_ml_training_page(params=None):
             train_df, test_df = create_simulated_training_set(selected_csv, safety_cap_pips / 100000)
             if train_df is None: return
             _, features = get_feature_matrix(train_df)
-            status.update(label="Daten bereit!", state="complete")
+            status.update(label="Data ready!", state="complete")
 
         core = EvolutionCore(new_model_name, len(features))
 
@@ -97,23 +97,23 @@ def display_ml_training_page(params=None):
                 record_label = f"+{diff_pct:.1f}%"
                 stagnation_counter = 0
 
-                # Feature Importance Puffer
+                # Feature Importance Buffer
                 importances = curr['model'].feature_importances_
                 feat_df_new = pd.DataFrame(
-                    {'Feature': FEATURE_COLS, 'Wichtigkeit': importances, 'Typ': 'Aktueller Rekord'})
+                    {'Feature': FEATURE_COLS, 'Importance': importances, 'Type': 'Current Record'})
                 if 'old_feat_df' not in st.session_state:
                     st.session_state.old_feat_df = feat_df_new.copy()
-                    st.session_state.old_feat_df['Typ'] = 'Vorheriger Rekord'
+                    st.session_state.old_feat_df['Type'] = 'Previous Record'
 
                 st.session_state.last_feat_chart_data = pd.concat([st.session_state.old_feat_df, feat_df_new])
                 st.session_state.old_feat_df = feat_df_new.copy()
-                st.session_state.old_feat_df['Typ'] = 'Vorheriger Rekord'
+                st.session_state.old_feat_df['Type'] = 'Previous Record'
             else:
                 stagnation_counter += 1
 
             if fitness_val >= current_max_fitness:
                 current_max_fitness = fitness_val
-                history_data.append({"Zyklus": cycle, "Fitness": fitness_val, "Event": record_label})
+                history_data.append({"Cycle": cycle, "Fitness": fitness_val, "Event": record_label})
 
             # --- 1. HEADER ---
             with header_spot.container():
@@ -159,12 +159,12 @@ def display_ml_training_page(params=None):
                     if history_data:
                         df_p = pd.DataFrame(history_data)
                         line = alt.Chart(df_p).mark_line(color='white', strokeWidth=2).encode(
-                            x=alt.X('Zyklus:Q', title='Zyklus'),
+                            x=alt.X('Cycle:Q', title='Cycle'),
                             y=alt.Y('Fitness:Q', title='Highscore Fitness', scale=alt.Scale(zero=False))
                         )
                         points = alt.Chart(df_p.dropna(subset=['Event'])).mark_point(color='#00ff00', size=70,
                                                                                      filled=True).encode(
-                            x='Zyklus:Q', y='Fitness:Q'
+                            x='Cycle:Q', y='Fitness:Q'
                         )
                         text = points.mark_text(align='left', dx=5, dy=-10, color='#00ff00', fontSize=10).encode(
                             text='Event:N')
@@ -173,8 +173,8 @@ def display_ml_training_page(params=None):
                     if 'last_feat_chart_data' in st.session_state:
                         f_chart = alt.Chart(st.session_state.last_feat_chart_data).mark_bar(opacity=0.6).encode(
                             x=alt.X('Feature:N', sort='-y'),
-                            y=alt.Y('Wichtigkeit:Q', stack=None),
-                            color=alt.Color('Typ:N', scale=alt.Scale(domain=['Vorheriger Rekord', 'Aktueller Rekord'],
+                            y=alt.Y('Importance:Q', stack=None),
+                            color=alt.Color('Type:N', scale=alt.Scale(domain=['Previous Record', 'Current Record'],
                                                                      range=['#ff4b4b', '#00ff00']))
                         ).properties(height=280)
                         col_r.altair_chart(f_chart, width='stretch')

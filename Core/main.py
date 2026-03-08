@@ -8,9 +8,9 @@ from config import STREAMLIT_PORT, STREAMLIT_HOST, UI_WIDTH, UI_HEIGHT, UI_TITLE
 # Pfad zur app_ui.py
 current_dir = os.path.dirname(os.path.abspath(__file__))
 ui_file = os.path.join(current_dir, "app_ui.py")
-root_dir = os.path.dirname(current_dir)  # Parent directory für imports
+root_dir = os.path.dirname(current_dir)  # Parent directory for imports
 
-# Streamlit im Hintergrund starten (mit korrektem working directory)
+# Start Streamlit in the background (with correct working directory)
 proc = subprocess.Popen([
     "streamlit", "run", ui_file,
     "--server.headless", "true",
@@ -21,7 +21,7 @@ proc = subprocess.Popen([
 time.sleep(STREAMLIT_STARTUP_DELAY)
 
 try:
-    # Das native Fenster öffnen
+    # Open the native window
     window = webview.create_window(
         UI_TITLE,
         f'http://{STREAMLIT_HOST}:{STREAMLIT_PORT}',
@@ -36,4 +36,4 @@ try:
 finally:
     # Sauberes Beenden
     proc.terminate()
-    print("Trading Bot wurde sicher beendet.")
+    print("Trading Bot was shut down safely.")

@@ -26,8 +26,8 @@ def search_ticker(query):
 def display_dataset_page():
     st.subheader("📂 Dataset Management & Import")
 
-    # --- TEIL 1: IMPORT NEUER DATEN ---
-    with st.expander("📥 Neuen Datensatz herunterladen", expanded=True):
+    # --- SECTION 1: IMPORT NEW DATA ---
+    with st.expander("📥 Download new dataset", expanded=True):
         search_query = st.text_input("Search Asset (e.g. Silver, Gold, BTC)", placeholder="Enter name...")
 
         selected_ticker = None
@@ -62,7 +62,7 @@ def display_dataset_page():
 
     st.divider()
 
-    # --- TEIL 2: VORHANDENE DATEIEN VERWALTEN ---
+    # --- SECTION 2: MANAGE EXISTING FILES ---
     st.markdown("### 📊 Available Datasets")
     files = [f for f in os.listdir(DATASET_DIR) if f.endswith('.csv')]
 

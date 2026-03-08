@@ -24,7 +24,7 @@ def prepare_live_features(df, weights):
     temp_df['volume_force'] = temp_df['Volume'] / (
         temp_df['Volume'].rolling(window=20).mean().replace(0, 1)) if 'Volume' in temp_df.columns else 1.0
 
-    # Normalisierung (identisch zum Preprocessor)
+    # Normalization (identical to Preprocessor)
     df_feat = temp_df[FEATURE_COLS].copy()
     temp_df[FEATURE_COLS] = (df_feat - df_feat.mean()) / (df_feat.std() + 1e-9)
 

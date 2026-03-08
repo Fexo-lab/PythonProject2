@@ -2,10 +2,10 @@
 Quantum Trading Bot - Core Module
 ==================================
 
-Hauptkomponenten:
+Main Components:
 - ml: Machine Learning & Evolution
-- engine: Trading Engine & Marktdaten
-- config: Zentrale Konfiguration
+- engine: Trading Engine & Market Data
+- config: Central Configuration
 """
 
 # Lazy imports to avoid circular dependencies

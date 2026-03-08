@@ -17,7 +17,7 @@ def load_live_assets():
     return {"Gold": "GC=F", "Silver": "SI=F"}
 
 def save_live_assets(assets):
-    """Speichert neue Assets in die Konfiguration (Fehlte vorhin)."""
+    """Saves new assets to configuration (was missing earlier)."""
     with open(LIVE_CONFIG, "w") as f:
         json.dump(assets, f)
 
@@ -42,7 +42,7 @@ def get_market_data(ticker_or_path, period="1mo", interval="1h"):
 def add_indicators(df):
     if df is None or len(df) < 20: return df
 
-    # Die zentrale Matrix berechnet alles (volatility, returns, etc.)
+    # The central matrix calculates everything (volatility, returns, etc.)
     from Core.ml.preprocessor import get_feature_matrix
     df_ki, _ = get_feature_matrix(df)
 

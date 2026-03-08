@@ -6,7 +6,7 @@ from datetime import datetime, timezone, timedelta
 from Core.engine.data import get_asset_news, load_live_assets
 from Core.config import NEWS_STORAGE_DIR
 
-# Pfade basierend auf Projektstruktur
+# Paths based on project structure
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 HISTORY_DIR = NEWS_STORAGE_DIR
 
@@ -28,7 +28,7 @@ def analyze_sentiment(title):
 
 
 def get_sentiment_trend_data(search_term, days=7):
-    """Erstellt einen Pandas DataFrame mit dem Sentiment-Verlauf."""
+    """Creates a Pandas DataFrame with sentiment trend."""
     safe_file_name = "".join([c for c in search_term if c.isalnum()])
     file_path = os.path.join(HISTORY_DIR, f"{safe_file_name}_history.json")
 
@@ -45,7 +45,7 @@ def get_sentiment_trend_data(search_term, days=7):
     if df.empty:
         return df
 
-    # Zeitstempel umwandeln und sortieren
+    # Convert timestamps and sort
     df['date_added'] = pd.to_datetime(df['date_added'])
     df = df.sort_values('date_added')
 
@@ -61,7 +61,7 @@ def get_sentiment_trend_data(search_term, days=7):
 
 
 def update_and_get_history(search_term, fresh_news):
-    """Speichert News mit korrekter Lokalzeit."""
+    """Saves news with correct local time."""
     safe_file_name = "".join([c for c in search_term if c.isalnum()])
     file_path = os.path.join(HISTORY_DIR, f"{safe_file_name}_history.json")
 
@@ -80,7 +80,7 @@ def update_and_get_history(search_term, fresh_news):
         title = n.get('title') or n.get('text')
 
         if title and title not in existing_titles:
-            # Zeitzonen-Fix: UTC zu Lokal
+            # Timezone Fix: UTC to Local
             raw_ts = n.get('providerPublishTime')
             if isinstance(raw_ts, (int, float)):
                 dt_utc = datetime.fromtimestamp(raw_ts, tz=timezone.utc)
@@ -110,9 +110,9 @@ def update_and_get_history(search_term, fresh_news):
 
 def display_news_page(selected_symbol):
     """
-    Optimierte News-Sentinel UI.
+    Optimized News-Sentinel UI.
     # Global sync already running in app_ui.py.
-    Hier konzentrieren wir uns rein auf die Visualisierung.
+    Here we focus purely on visualization.
     """
     st.title("📰 News Maximizer & Sentinel")
 
@@ -121,7 +121,7 @@ def display_news_page(selected_symbol):
         st.warning("No assets found.")
         return
 
-    # Asset-Auswahl
+    # Select asset
     display_names = list(assets_data.keys())
     clean_ticker = str(selected_symbol).split('|')[0].strip()
     current_name = next((n for n, t in assets_data.items() if t == clean_ticker), display_names[0])
@@ -130,26 +130,26 @@ def display_news_page(selected_symbol):
     search_term = selected_display_name.split(' ')[0].strip()
 
     try:
-        # Lokale News-Daten laden
-        # Wir rufen get_asset_news trotzdem auf, um sicherzugehen, dass das Fokus-Asset absolut aktuell ist
+        # Load local news data
+        # We still call get_asset_news to ensure that the focus asset is absolutely current
         fresh_api_news = get_asset_news(search_term)
         all_news, _, _ = update_and_get_history(search_term, fresh_api_news)
 
         # --- SENTIMENT TREND CHART ---
-        st.subheader(f"📈 Sentiment Verlauf: {search_term}")
+        st.subheader(f"📈 Sentiment Trend: {search_term}")
         trend_df = get_sentiment_trend_data(search_term)
 
         if not trend_df.empty:
-            # Modernisierte Layout-Syntax für 2026 [cite: 2026-03-07]
+            # Modernized layout syntax for 2026 [cite: 2026-03-07]
             st.area_chart(data=trend_df, x='date_added', y='sentiment_index', width='stretch')
         else:
             st.info("Collecting data for trend analysis...")
 
-        # News Liste mit Farbindikatoren
+        # News list with color indicators
         st.write("---")
         for item in all_news[:100]:
             color = "#00ff00" if item['score'] > 0 else "#ff4b4b" if item['score'] < 0 else "#777777"
-            # Bullet-Point Design für bessere Lesbarkeit
+            # Bullet-point design for better readability
             st.markdown(f"<span style='color:{color}'>●</span> **{item['title']}**", unsafe_allow_html=True)
             st.caption(f"{item['publisher']} | {item['date_added']}")
 

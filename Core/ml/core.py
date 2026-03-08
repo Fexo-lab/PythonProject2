@@ -12,18 +12,18 @@ class EvolutionCore:
         self.population = self._initialize_population()
 
     def _initialize_population(self):
-        # DNA besteht aus: 9 Weights + 9 Biases + Hyperparameter (max_depth, n_estimators)
+        # DNA consists of: 9 Weights + 9 Biases + Hyperparameter (max_depth, n_estimators)
         pop = []
         for _ in range(15):
             dna = {
-                'weights': np.random.uniform(0.1, 3.0, self.features_count),      # Relative Multiplikatoren!
+                'weights': np.random.uniform(0.1, 3.0, self.features_count),      # Relative Multipliers!
                 'biases': np.random.uniform(-1.0, 1.0, self.features_count),     # Additive Offsets
                 'max_depth': np.random.randint(4, 16),
                 'n_estimators': np.random.randint(10, 100)
             }
             pop.append(dna)
         
-        # Beste bisherige DNA laden
+        # Load best previous DNA
         if os.path.exists(self.dna_path):
             try:
                 with open(self.dna_path, 'r') as f:
@@ -48,7 +48,7 @@ class EvolutionCore:
         fitness_scores = []
 
         for dna in self.population:
-            # Wende Weights und Biases auf die Daten an
+            # Apply weights and biases to the data
             weights = dna['weights']
             biases = dna['biases']
             max_depth = dna['max_depth']
@@ -57,7 +57,7 @@ class EvolutionCore:
             X_train_scaled = (X_train.values * weights) + biases
             X_test_scaled = (X_test.values * weights) + biases
 
-            # Modell mit evolvierten Hyperparametern
+            # Model with evolved hyperparameters
             model = RandomForestClassifier(
                 n_estimators=int(n_estimators), 
                 max_depth=int(max_depth), 
@@ -66,14 +66,14 @@ class EvolutionCore:
             )
             model.fit(X_train_scaled, y_train)
 
-            # === TRAIN-SET EVALUIERUNG ===
+            # === TRAIN-SET EVALUATION ===
             probs = model.predict_proba(X_train_scaled)
             if probs.shape[1] > 1:
                 preds_train = model.classes_[np.argmax(probs, axis=1)]
             else:
                 preds_train = np.zeros(len(X_train), dtype=int)
             
-            # Separieren: Long (1) und Short (2) Trades
+            # Separate: Long (1) and Short (2) Trades
             long_idx = np.where(preds_train == 1)[0]
             short_idx = np.where(preds_train == 2)[0]
             
@@ -90,13 +90,13 @@ class EvolutionCore:
             total_trades = len(long_idx) + len(short_idx)
             total_pips_train = long_total_pips + short_total_pips
             
-            # === NEUE FITNESS LOGIK für TRAIN (ähnlich wie TEST) ===
+            # === NEW FITNESS LOGIC for TRAIN (similar to TEST) ===
             if total_trades > 0:
-                # Win Rate im Training
+                # Win Rate in Training
                 total_winners = long_winners + short_winners
                 train_wr = (total_winners / total_trades) * 100
                 
-                # Profit Factor im Training
+                # Profit Factor in Training
                 all_train_pips = np.concatenate([long_pips, short_pips]) if len(long_pips) > 0 or len(short_pips) > 0 else np.array([])
                 train_winners = all_train_pips[all_train_pips > 0]
                 train_losers = all_train_pips[all_train_pips < 0]
@@ -119,23 +119,23 @@ class EvolutionCore:
             else:
                 train_fit = -10000  # Keine Trades = sehr schlecht
 
-            # === TEST-SET EVALUIERUNG ===
+            # === TEST-SET EVALUATION ===
             t_probs = model.predict_proba(X_test_scaled)
             if t_probs.shape[1] > 1:
                 t_preds = model.classes_[np.argmax(t_probs, axis=1)]
             else:
                 t_preds = np.zeros(len(X_test), dtype=int)
             
-            # Separieren: Long und Short im Test-Set
+            # Separate: Long and Short in test set
             t_long_idx = np.where(t_preds == 1)[0]
             t_short_idx = np.where(t_preds == 2)[0]
             
-            # Long Statistiken im Test-Set
+            # Long Statistics in test set
             t_long_pips = pips_test[t_long_idx] if len(t_long_idx) > 0 else np.array([])
             t_long_winners = np.sum(t_long_pips > 0) if len(t_long_pips) > 0 else 0
             t_long_total_pips = np.sum(t_long_pips) if len(t_long_pips) > 0 else 0
             
-            # Short Statistiken im Test-Set
+            # Short Statistics in test set
             t_short_pips = pips_test[t_short_idx] if len(t_short_idx) > 0 else np.array([])
             t_short_winners = np.sum(t_short_pips > 0) if len(t_short_pips) > 0 else 0
             t_short_total_pips = np.sum(t_short_pips) if len(t_short_pips) > 0 else 0
@@ -143,13 +143,13 @@ class EvolutionCore:
             t_total_trades = len(t_long_idx) + len(t_short_idx)
             t_total_pips = t_long_total_pips + t_short_total_pips
             
-            # === NEUE FITNESS LOGIK: Profit Factor & Win Rate fokussiert ===
+            # === NEW FITNESS LOGIC: Profit Factor & Win Rate focused ===
             if t_total_trades > 0:
                 # Win Rate
                 t_total_winners = t_long_winners + t_short_winners
                 win_rate = (t_total_winners / t_total_trades) * 100
                 
-                # Profit Factor Berechnung
+                # Profit Factor Calculation
                 all_pips = np.concatenate([t_long_pips, t_short_pips]) if len(t_long_pips) > 0 or len(t_short_pips) > 0 else np.array([])
                 winners = all_pips[all_pips > 0]
                 losers = all_pips[all_pips < 0]
@@ -161,13 +161,13 @@ class EvolutionCore:
                 else:
                     profit_factor = 1.0 if len(winners) > 0 else 0.0
                 
-                # NEUE FITNESS FORMEL (statt einfacher Pips Bestrafung):
-                # 1. Basis: Actual Pips (nur 0.3x gewichtet, da zu volatil)
-                # 2. +Bonus: Win Rate über 50% (jedes % extra = +100 points)
-                # 3. +Bonus: Profit Factor über 1.0 (jede 0.1x = +500 points)
-                # 4. +Basis: Trade Count (nur 20 trades minimum für Signifikanz)
+                # NEW FITNESS FORMULA (instead of simple Pips punishment):
+                # 1. Base: Actual Pips (only 0.3x weighted, as too volatile)
+                # 2. +Bonus: Win Rate above 50% (each % extra = +100 points)
+                # 3. +Bonus: Profit Factor above 1.0 (each 0.1x = +500 points)
+                # 4. +Base: Trade Count (only 20 trades minimum for significance)
                 
-                test_fit = t_total_pips * 0.3  # Actual Pips zählen, aber nur zu 30%
+                test_fit = t_total_pips * 0.3  # Actual Pips count, but only at 30%
                 
                 # Win Rate Bonus: 50% = 0 points, 60% = 1000 points, 70% = 2000 points
                 win_rate_bonus = max(0, (win_rate - 50) * 100)
@@ -177,9 +177,9 @@ class EvolutionCore:
                 profit_factor_bonus = max(0, (profit_factor - 1.0) * 500)
                 test_fit += profit_factor_bonus
                 
-                # Trade Count: Mehr Trades = höheres Vertrauen (aber nicht unbegrenzt)
+                # Trade Count: More Trades = Higher Confidence (but not unlimited)
                 if t_total_trades >= 100:
-                    test_fit += 1000  # Bonus für statistische Signifikanz
+                    test_fit += 1000  # Bonus for statistical significance
                 elif t_total_trades >= 50:
                     test_fit += 500
             else:
@@ -187,7 +187,7 @@ class EvolutionCore:
                 win_rate = 0.0
                 profit_factor = 0.0
 
-            # === GESAMT FITNESS: 70% Test, 30% Train ===
+            # === TOTAL FITNESS: 70% Test, 30% Train ===
             total_fit = (0.7 * test_fit) + (0.3 * train_fit)
             
             # === QUALITY METRICS ===
@@ -203,7 +203,7 @@ class EvolutionCore:
             # Realistic Check
             is_realistic = (REALISTIC_WR_MIN <= win_rate <= REALISTIC_WR_MAX) and (profit_factor >= REALISTIC_PF_MIN)
             
-            # Feature Importance (größte Weights zuerst)
+            # Feature Importance (largest Weights first)
             weight_importance = np.abs(weights / np.sum(np.abs(weights)) * 100)
             
             # Quality Score (0-1)
@@ -215,17 +215,17 @@ class EvolutionCore:
                 'total_fit': total_fit, 
                 'test_fit': test_fit,
                 'train_fit': train_fit,
-                'fit': train_fit,  # Für Kompatibilität
+                'fit': train_fit,  # For backward compatibility
                 'weights': weights, 
                 'biases': biases,
                 'max_depth': max_depth, 
                 'n_estimators': n_estimators, 
                 'model': model,
-                # RÜCKWÄRTS-KOMPATIBLE Felder (für GUI)
+                # BACKWARD-COMPATIBLE Fields (for GUI)
                 'lw': len(long_idx),      # Long Trade Count
                 'sw': len(short_idx),     # Short Trade Count
                 'wr': win_rate,           # Win Rate %
-                # NEUE DETAILLIERTE Felder
+                # NEW DETAILED Fields
                 'long_winners': long_winners,
                 'long_total_trades': len(long_idx),
                 'long_total_pips': long_total_pips,
@@ -248,7 +248,7 @@ class EvolutionCore:
                 'feature_importance': weight_importance.tolist()
             })
 
-        # Sortieren nach Fitness
+        # Sort by fitness
         fitness_scores.sort(key=lambda x: x['total_fit'], reverse=True)
         curr = fitness_scores[0]
 
@@ -273,13 +273,13 @@ class EvolutionCore:
         return curr, is_better
 
     def _evolve_custom(self, scores):
-        # 1. Die 2 besten Eltern übernehmen
+        # 1. Take the 2 best parents
         parent1_dna = scores[0]
         parent2_dna = scores[1]
 
         new_population = []
 
-        # 1. Beide Eltern direkt in die neue Generation (Elitism)
+        # 1. Both parents directly into new generation (Elitism)
         new_population.append({
             'weights': parent1_dna['weights'].copy(),
             'biases': parent1_dna['biases'].copy(),
@@ -293,7 +293,7 @@ class EvolutionCore:
             'n_estimators': parent2_dna['n_estimators']
         })
 
-        # 2. Intelligentes Crossover (Hybrid aus beiden Eltern)
+        # 2. Intelligent Crossover (Hybrid of both parents)
         crossover_mask = np.random.rand(len(parent1_dna['weights'])) > 0.5
         child_hybrid = {
             'weights': np.where(crossover_mask, parent1_dna['weights'], parent2_dna['weights']).copy(),
@@ -303,11 +303,11 @@ class EvolutionCore:
         }
         new_population.append(child_hybrid)
 
-        # 3. 10 aggressive mutierte Varianten der besten Eltern
+        # 3. 10 aggressive mutated variants of the best parents
         for i in range(10):
             parent_dna = parent1_dna if i % 2 == 0 else parent2_dna
             
-            # Mutation stärke variiert (20-40% statt 15-30%)
+            # Mutation strength varies (20-40% instead of 15-30%)
             mutation_strength = 0.2 + (i * 0.03)
             
             mutant = {
@@ -317,23 +317,23 @@ class EvolutionCore:
                 'n_estimators': parent_dna['n_estimators']
             }
             
-            # Weights mutieren (jetzt nur 0.1-3.0 Bereich)
-            weight_mask = np.random.rand(len(mutant['weights'])) < 0.5  # 50% der Weights
+            # Weights mutate (now only 0.1-3.0 range)
+            weight_mask = np.random.rand(len(mutant['weights'])) < 0.5  # 50% of weights
             mutant['weights'][weight_mask] *= (1 + np.random.normal(0, mutation_strength, np.sum(weight_mask)))
             mutant['weights'] = np.clip(mutant['weights'], 0.1, 3.0)
             
-            # Biases mutieren (-1 bis 1)
+            # Biases mutate (-1 to 1)
             bias_mask = np.random.rand(len(mutant['biases'])) < 0.5
             mutant['biases'][bias_mask] += np.random.normal(0, mutation_strength * 0.5, np.sum(bias_mask))
             mutant['biases'] = np.clip(mutant['biases'], -1.0, 1.0)
             
-            # Hyperparameter mutieren
+            # Hyperparameter mutate
             mutant['max_depth'] = int(np.clip(mutant['max_depth'] + np.random.randint(-2, 3), 4, 16))
             mutant['n_estimators'] = int(np.clip(mutant['n_estimators'] + np.random.randint(-10, 11), 10, 100))
             
             new_population.append(mutant)
 
-        # 4. Nur 2 komplett neue Probanden für Diversität
+        # 4. Only 2 completely new candidates for diversity
         for _ in range(2):
             random_dna = {
                 'weights': np.random.uniform(0.1, 3.0, len(parent1_dna['weights'])),
