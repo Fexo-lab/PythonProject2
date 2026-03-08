@@ -2,8 +2,9 @@ import os
 import json
 import requests
 from datetime import datetime, timedelta
+from Core.config import NEWS_STORAGE_DIR
 
-HISTORY_DIR = "news_storage"
+HISTORY_DIR = NEWS_STORAGE_DIR
 
 def get_local_sentiment(symbol_name):
     search_term = symbol_name.split(' ')[0].strip()

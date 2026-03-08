@@ -3,8 +3,9 @@ import pandas as pd
 import os
 import yfinance as yf
 import requests
+from Core.config import DATASETS_DIR
 
-DATASET_DIR = "datasets"
+DATASET_DIR = DATASETS_DIR
 if not os.path.exists(DATASET_DIR):
     os.makedirs(DATASET_DIR)
 

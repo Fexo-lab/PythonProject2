@@ -3,11 +3,12 @@ import json
 import os
 import pandas as pd
 from datetime import datetime, timezone, timedelta
-from Core.data_engine import get_asset_news, load_live_assets
+from Core.engine.data import get_asset_news, load_live_assets
+from Core.config import NEWS_STORAGE_DIR
 
 # Pfade basierend auf Projektstruktur
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-HISTORY_DIR = os.path.join(os.path.dirname(BASE_DIR), "news_storage")
+HISTORY_DIR = NEWS_STORAGE_DIR
 
 if not os.path.exists(HISTORY_DIR):
     os.makedirs(HISTORY_DIR)

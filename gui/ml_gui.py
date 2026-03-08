@@ -6,12 +6,12 @@ import time
 import shutil
 import altair as alt
 
-from .config import FEATURE_COLS
-from .ml.preprocessor import create_simulated_training_set, get_feature_matrix
-from .ml.core import EvolutionCore
+from Core.config import FEATURE_COLS, MODELS_DIR, DATASETS_DIR
+from Core.ml.preprocessor import create_simulated_training_set, get_feature_matrix
+from Core.ml.core import EvolutionCore
 
-MODEL_DIR = "models"
-DATASET_DIR = "datasets"
+MODEL_DIR = MODELS_DIR
+DATASET_DIR = DATASETS_DIR
 
 
 def display_ml_training_page(params=None):
