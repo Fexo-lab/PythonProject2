@@ -21,8 +21,8 @@ class EvolutionCore:
             dna = {
                 'weights': np.ones(self.features_count),                           # Start at 1.0 (neutral multiplier)
                 'biases': np.zeros(self.features_count),                           # Start at 0.0 (no bias offset)
-                'max_depth': np.random.randint(3, 8),                              # Constrain depth 3-8 (was 4-16)
-                'n_estimators': np.random.randint(10, 75)
+                'max_depth': np.random.randint(4, 10),                             # Constrain depth 4-10
+                'n_estimators': np.random.randint(15, 80)
             }
             pop.append(dna)
         

@@ -1,8 +1,6 @@
 import pandas as pd
 import numpy as np
 import os
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
 
 from Core.config import FEATURE_COLS, DATASETS_DIR
 
@@ -55,7 +53,8 @@ def get_feature_matrix(df):
 
 def create_simulated_training_set(csv_name, max_sl_pct):
     """
-    Creates a training set with labels based on a dynamic trailing stop.
+    Creates a training set with labels based on independent BUY/SELL logic.
+    IMPORTANTLY: Uses Walk-Forward validation (time-respecting) for training data.
     """
     file_path = os.path.join(DATASETS_DIR, csv_name)
     if not os.path.exists(file_path):
@@ -68,53 +67,50 @@ def create_simulated_training_set(csv_name, max_sl_pct):
     labels, pip_results = [], []
     prices = df['Close'].values
 
-    # Trailing Stop Simulation for Labeling
+    # Independent BUY/SELL Labeling (Not "SELL only if BUY fails")
     for i in range(len(prices)):
-        label, pip_diff = 0, 0
-        trade_found = False
         entry_p = prices[i]
+        best_label = 0  # Default: HOLD
+        best_pip_diff = 0
 
-        # BUY Simulation
-        curr_sl = entry_p * (1 - max_sl_pct)
+        # ===== BUY SCENARIO (Label 1) =====
+        curr_sl_buy = entry_p * (1 - max_sl_pct)
         max_seen = entry_p
+        buy_pips = 0
         for j in range(1, 150):
             if i + j >= len(prices): break
             p = prices[i + j]
             if p > max_seen:
                 max_seen = p
-                curr_sl = max_seen * (1 - (max_sl_pct * 0.5))
-            if p <= curr_sl:
-                pip_diff = (curr_sl - entry_p) / entry_p * 1000
-                # Label basierend auf ob Gewinn oder Verlust (NICHT auf Profit-Schwelle!)
-                label = 1 if pip_diff > 0 else 0
-                trade_found = True
+                curr_sl_buy = max_seen * (1 - (max_sl_pct * 0.5))
+            if p <= curr_sl_buy:
+                buy_pips = (curr_sl_buy - entry_p) / entry_p * 1000
+                if buy_pips > 0:  # Only if profitable
+                    best_label = 1
+                    best_pip_diff = buy_pips
                 break
 
-        # SELL Simulation (if BUY was not successful)
-        if not trade_found:
-            curr_sl = entry_p * (1 + max_sl_pct)
-            min_seen = entry_p
-            for j in range(1, 150):
-                if i + j >= len(prices): break
-                p = prices[i + j]
-                if p < min_seen:
-                    min_seen = p
-                    curr_sl = min_seen * (1 + (max_sl_pct * 0.5))
-                if p >= curr_sl:
-                    pip_diff = (entry_p - curr_sl) / entry_p * 1000
-                    # Label based on profit or loss (NOT on profit threshold!)
-                    label = 2 if pip_diff > 0 else 0
-                    trade_found = True
-                    break
+        # ===== SELL SCENARIO (Label 2) - INDEPENDENT of BUY =====
+        curr_sl_sell = entry_p * (1 + max_sl_pct)
+        min_seen = entry_p
+        sell_pips = 0
+        for j in range(1, 150):
+            if i + j >= len(prices): break
+            p = prices[i + j]
+            if p < min_seen:
+                min_seen = p
+                curr_sl_sell = min_seen * (1 + (max_sl_pct * 0.5))
+            if p >= curr_sl_sell:
+                sell_pips = (entry_p - curr_sl_sell) / entry_p * 1000
+                if sell_pips > 0:  # Only if profitable
+                    # Prefer SELL over BUY if it's more profitable
+                    if sell_pips > best_pip_diff:
+                        best_label = 2
+                        best_pip_diff = sell_pips
+                break
 
-        # If no trade within 150 bars, mark as 0
-        # (This indicates poor conditions or lack of opportunity)
-        if not trade_found:
-            label = 0
-            pip_diff = 0
-
-        labels.append(label)
-        pip_results.append(pip_diff)
+        labels.append(best_label)
+        pip_results.append(best_pip_diff)
 
     df['target_label'] = labels
     df['pip_result'] = pip_results
@@ -122,16 +118,13 @@ def create_simulated_training_set(csv_name, max_sl_pct):
     # Remove the first 100 rows (due to indicator warmup)
     full_df = df.iloc[100:].copy().reset_index(drop=True)
 
-    # STRATIFIED TRAIN-TEST SPLIT (ensures balanced class distribution)
-    # This prevents one set from having disproportionately more BUY/SELL/HOLD
-    train_df, test_df = train_test_split(
-        full_df, 
-        test_size=0.2,
-        random_state=42,
-        stratify=full_df['target_label']  # Balance class distribution
-    )
+    # WALK-FORWARD VALIDATION (Time-respecting, not shuffled random)
+    # 80% training, 20% testing (sequential in time - correct for time-series)
+    split_idx = int(len(full_df) * 0.8)
+    train_df = full_df.iloc[:split_idx].copy().reset_index(drop=True)
+    test_df = full_df.iloc[split_idx:].copy().reset_index(drop=True)
     
-    return train_df.copy().reset_index(drop=True), test_df.copy().reset_index(drop=True)
+    return train_df, test_df
 
 
 def analyze_feature_importance(X_train, X_test, y_train, y_test):
