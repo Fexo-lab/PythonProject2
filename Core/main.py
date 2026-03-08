@@ -3,7 +3,6 @@ import subprocess
 import time
 import sys
 import os
-import threading
 
 # 1. Den Pfad zur app_ui.py finden
 # Das stellt sicher, dass das Skript die Datei auch findet, wenn du es aus verschiedenen Ordnern startest
@@ -20,11 +19,6 @@ proc = subprocess.Popen([
 
 # Dem Server 3-5 Sekunden Zeit geben, um hochzufahren
 time.sleep(4)
-
-# Starte Auto-Fetch Thread
-fetch_thread = threading.Thread(target=auto_fetch_loop, args=(5,))
-fetch_thread.daemon = True
-fetch_thread.start()
 
 try:
     # 3. Das native Fenster öffnen
