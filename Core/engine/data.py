@@ -2,7 +2,7 @@ import yfinance as yf
 import pandas as pd
 import os
 import json
-from Core.ml_preprocessor import get_feature_matrix
+from ..ml.preprocessor import get_feature_matrix
 
 LIVE_CONFIG = "live_assets.json"
 
@@ -43,7 +43,7 @@ def add_indicators(df):
     if df is None or len(df) < 20: return df
 
     # Die zentrale Matrix berechnet alles (volatility, returns, etc.)
-    from Core.ml_preprocessor import get_feature_matrix
+    from ..ml.preprocessor import get_feature_matrix
     df_ki, _ = get_feature_matrix(df)
 
     # WICHTIG: Wir müssen die berechneten Spalten in den Original-DF zurückführen

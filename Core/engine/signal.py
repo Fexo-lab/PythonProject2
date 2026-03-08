@@ -1,5 +1,5 @@
 import os, joblib, json, numpy as np
-from Core.ml_preprocessor import get_feature_matrix, FEATURE_COLS
+from ..ml.preprocessor import get_feature_matrix, FEATURE_COLS
 
 
 def execute_trade_decision(df, model_name):

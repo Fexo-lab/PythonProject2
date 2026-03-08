@@ -6,11 +6,11 @@ import datetime
 # Pfad-Fix für lokale Module
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from Core.data_engine import get_market_data, add_indicators
+from .engine.data import get_market_data, add_indicators
 from gui.chart_engine import create_trading_chart, display_terminal, display_stats, display_live_log
 from gui.ml_gui import display_ml_training_page
 from gui.dataset_gui import display_dataset_page
-from Core.signal_engine import execute_trade_decision
+from .engine.signal import execute_trade_decision
 
 # App Konfiguration
 st.set_page_config(page_title="AI Quantum Trader Pro v6.2", layout="wide")

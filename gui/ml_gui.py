@@ -6,9 +6,9 @@ import time
 import shutil
 import altair as alt
 
-from Core.config import FEATURE_COLS
-from Core.ml_preprocessor import create_simulated_training_set, get_feature_matrix
-from Core.ml_core import EvolutionCore
+from .config import FEATURE_COLS
+from .ml.preprocessor import create_simulated_training_set, get_feature_matrix
+from .ml.core import EvolutionCore
 
 MODEL_DIR = "models"
 DATASET_DIR = "datasets"

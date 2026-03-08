@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from Core.config import FEATURE_COLS
+from ..config import FEATURE_COLS
 
 
 def prepare_live_features(df, weights):
