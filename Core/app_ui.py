@@ -29,7 +29,7 @@ if 'trade_log' not in st.session_state:
 # --- SIDEBAR NAVIGATION ---
 with st.sidebar:
     st.title("👨‍🚀 Control Center")
-    page = st.radio("Navigation", ["📈 Live Chart", "🧠 ML Training", "📂 Datasets"])
+    page = st.radio("Navigation", ["📈 Live Chart", "🧠 ML Training", "📂 Datasets", "📰 News"])
     st.divider()
 
     # Model Selection (Dynamically from /models folder)
@@ -82,11 +82,6 @@ if page == "📈 Live Chart":
             if new_sym and new_sym != st.session_state.current_symbol:
                 st.session_state.current_symbol = new_sym
                 st.rerun()
-        
-        # --- NEWS SIDEBAR IN RIGHT COLUMN ---
-        st.divider()
-        with st.expander("📰 Asset News", expanded=False):
-            display_news_page(st.session_state.current_symbol)
 
 # --- PAGE 2: ML TRAINING ---
 elif page == "🧠 ML Training":
@@ -95,3 +90,7 @@ elif page == "🧠 ML Training":
 # --- PAGE 3: DATASETS ---
 elif page == "📂 Datasets":
     display_dataset_page()
+
+# --- PAGE 4: NEWS ---
+elif page == "📰 News":
+    display_news_page(st.session_state.current_symbol)
