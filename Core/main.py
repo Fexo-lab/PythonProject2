@@ -5,26 +5,6 @@ import sys
 import os
 import threading
 
-def git_fetch():
-    """Führt 'git fetch' aus und gibt das Ergebnis zurück."""
-    try:
-        result = subprocess.run(['git', 'fetch'], capture_output=True, text=True, cwd=os.getcwd())
-        if result.returncode == 0:
-            print("Git fetch erfolgreich.")
-            return True
-        else:
-            print(f"Git fetch Fehler: {result.stderr}")
-            return False
-    except Exception as e:
-        print(f"Fehler beim Git fetch: {e}")
-        return False
-
-def auto_fetch_loop(interval_minutes=5):
-    """Schleife für automatisches Fetching alle X Minuten."""
-    while True:
-        git_fetch()
-        time.sleep(interval_minutes * 60)  # Warte X Minuten
-
 # 1. Den Pfad zur app_ui.py finden
 # Das stellt sicher, dass das Skript die Datei auch findet, wenn du es aus verschiedenen Ordnern startest
 current_dir = os.path.dirname(os.path.abspath(__file__))
