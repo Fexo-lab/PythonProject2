@@ -81,6 +81,7 @@ def create_simulated_training_set(csv_name, max_sl_pct):
     for i in range(len(prices)):
         label, pip_diff = 0, 0
         entry_p = prices[i]
+        trade_found = False
 
         # BUY Simulation
         curr_sl = entry_p * (1 - max_sl_pct)
@@ -93,11 +94,13 @@ def create_simulated_training_set(csv_name, max_sl_pct):
                 curr_sl = max_seen * (1 - (max_sl_pct * 0.5))
             if p <= curr_sl:
                 pip_diff = (curr_sl - entry_p) / entry_p * 1000
-                label = 1 if curr_sl > entry_p * 1.0005 else 0
+                if curr_sl > entry_p * 1.0005:  # Mindestens 0.05% Profit
+                    label = 1
+                    trade_found = True
                 break
 
-        # SELL Simulation (falls BUY nicht erfolgreich war)
-        if label == 0:
+        # SELL Simulation (nur wenn BUY keinen Trade auslöste)
+        if not trade_found:
             curr_sl = entry_p * (1 + max_sl_pct)
             min_seen = entry_p
             for j in range(1, 150):
@@ -108,11 +111,13 @@ def create_simulated_training_set(csv_name, max_sl_pct):
                     curr_sl = min_seen * (1 + (max_sl_pct * 0.5))
                 if p >= curr_sl:
                     pip_diff = (entry_p - curr_sl) / entry_p * 1000
-                    label = 2 if curr_sl < entry_p * 0.9995 else 0
+                    if curr_sl < entry_p * 0.9995:  # Mindestens 0.05% Profit
+                        label = 2
+                        trade_found = True
                     break
 
         labels.append(label)
-        pip_results.append(pip_diff)
+        pip_results.append(pip_diff if trade_found else 0)
 
     df['target_label'] = labels
     df['pip_result'] = pip_results
