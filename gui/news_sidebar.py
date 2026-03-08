@@ -15,7 +15,7 @@ if not os.path.exists(HISTORY_DIR):
 
 
 def analyze_sentiment(title):
-    """Bewertet den Titel auf bullische oder bärische Keywords."""
+    """Rate the title on bullish or bearish keywords."""
     bullish = ['rise', 'high', 'jump', 'bull', 'gain', 'growth', 'positive', 'up', 'surge', 'rally', 'breakout']
     bearish = ['fall', 'low', 'drop', 'bear', 'loss', 'decline', 'negative', 'down', 'crash', 'slump', 'risk']
     score = 0
@@ -49,11 +49,11 @@ def get_sentiment_trend_data(search_term, days=7):
     df['date_added'] = pd.to_datetime(df['date_added'])
     df = df.sort_values('date_added')
 
-    # Filter auf Zeitraum
+    # Filter by time period
     cutoff = datetime.now() - timedelta(days=days)
     df = df[df['date_added'] > cutoff]
 
-    # Gleitender Durchschnitt für den Trend-Index
+    # Moving average for trend index
     if not df.empty:
         df['sentiment_index'] = df['score'].rolling(window=3, min_periods=1).mean()
 
@@ -111,7 +111,7 @@ def update_and_get_history(search_term, fresh_news):
 def display_news_page(selected_symbol):
     """
     Optimierte News-Sentinel UI.
-    Der globale Sync läuft bereits in app_ui.py.
+    # Global sync already running in app_ui.py.
     Hier konzentrieren wir uns rein auf die Visualisierung.
     """
     st.title("📰 News Maximizer & Sentinel")
@@ -154,4 +154,4 @@ def display_news_page(selected_symbol):
             st.caption(f"{item['publisher']} | {item['date_added']}")
 
     except Exception as e:
-        st.error(f"Fehler: {e}")
+        st.error(f"Error: {e}")

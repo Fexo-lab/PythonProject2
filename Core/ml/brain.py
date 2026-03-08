@@ -5,7 +5,7 @@ from Core.config import FEATURE_COLS
 
 def prepare_live_features(df, weights):
     temp_df = df.copy()
-    # Identische Logik wie im Preprocessor für alle 9 Features
+    # Identical logic as in Preprocessor for all 9 Features
     temp_df['returns'] = temp_df['Close'].pct_change()
     temp_df['volatility'] = temp_df['returns'].rolling(window=10).std()
     temp_df['range'] = (temp_df['High'] - temp_df['Low']) / (temp_df['Close'] + 1e-9)

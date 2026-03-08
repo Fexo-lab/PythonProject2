@@ -11,7 +11,7 @@ if not os.path.exists(DATASET_DIR):
 
 
 def search_ticker(query):
-    """Sucht nach Symbolen über die Yahoo Finance API."""
+    """Search for symbols via the Yahoo Finance API."""
     if not query or len(query) < 2: return []
     try:
         url = f"https://query2.finance.yahoo.com/v1/finance/search?q={query}"
@@ -38,27 +38,27 @@ def display_dataset_page():
                 selected_ticker = choice.split(" | ")[0]
 
         col1, col2 = st.columns(2)
-        period = col1.selectbox("Zeitraum", ["1y", "2y", "5y", "max"])
-        interval = col2.selectbox("Intervall", ["1h", "1d", "15m"])
+        period = col1.selectbox("Time Period", ["1y", "2y", "5y", "max"])
+        interval = col2.selectbox("Interval", ["1h", "1d", "15m"])
 
         if st.button("🚀 Import Data Now"):
             if not selected_ticker:
-                st.error("Bitte wähle zuerst ein Asset aus!")
+                st.error("Please select an asset first!")
             else:
-                with st.status(f"Lade {selected_ticker} herunter...") as status:
+                with st.status(f"Downloading {selected_ticker}...") as status:
                     data = yf.download(selected_ticker, period=period, interval=interval)
                     if not data.empty:
-                        # MultiIndex Fix für 2026er yfinance Version
+                        # MultiIndex fix for yfinance
                         if isinstance(data.columns, pd.MultiIndex):
                             data.columns = data.columns.get_level_values(0)
 
                         filename = f"{selected_ticker.replace('=', '')}_{interval}.csv"
                         path = os.path.join(DATASET_DIR, filename)
                         data.to_csv(path)
-                        status.update(label=f"Gespeichert als {filename}!", state="complete")
-                        st.success(f"Datei erfolgreich in {DATASET_DIR} abgelegt.")
+                        status.update(label=f"Saved as {filename}!", state="complete")
+                        st.success(f"File successfully saved to {DATASET_DIR}.")
                     else:
-                        st.error("Keine Daten gefunden.")
+                        st.error("No data found.")
 
     st.divider()
 
@@ -70,7 +70,7 @@ def display_dataset_page():
         for file in files:
             col_a, col_b = st.columns([3, 1])
             col_a.code(file)
-            if col_b.button("Löschen", key=file):
+            if col_b.button("Delete", key=file):
                 os.remove(os.path.join(DATASET_DIR, file))
                 st.rerun()
     else:

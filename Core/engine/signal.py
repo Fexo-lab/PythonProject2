@@ -16,7 +16,7 @@ def execute_trade_decision(df, model_name):
             weights = np.array(dna.get('weights', [1.0]*9))
             biases = np.array(dna.get('biases', [0.0]*9))
 
-        # Nutzt jetzt Weights UND Biases für Feature-Skalierung
+        # Now uses Weights AND Biases for Feature Scaling
         X_live = (df_processed[FEATURE_COLS].tail(1).values * weights) + biases
         model = joblib.load(model_path)
 

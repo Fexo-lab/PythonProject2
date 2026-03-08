@@ -7,7 +7,7 @@ from Core.ml.preprocessor import get_feature_matrix
 LIVE_CONFIG = "live_assets.json"
 
 def load_live_assets():
-    """Lädt die Liste der handelbaren Assets."""
+    """Load the list of tradeable assets."""
     if os.path.exists(LIVE_CONFIG):
         try:
             with open(LIVE_CONFIG, "r") as f:
@@ -46,12 +46,13 @@ def add_indicators(df):
     from Core.ml.preprocessor import get_feature_matrix
     df_ki, _ = get_feature_matrix(df)
 
-    # WICHTIG: Wir müssen die berechneten Spalten in den Original-DF zurückführen
+    # IMPORTANT: We must return calculated columns in the original DataFrame
+    # This ensures the data flow is preserved correctly
     for col in ['volatility', 'rsi', 'returns']:
         if col in df_ki.columns:
             df[col] = df_ki[col]
 
-    # Absolute EMAs für den Chart
+    # Absolute EMAs for the chart
     for period in [20, 50, 100]:
         df[f'EMA_{period}'] = df['Close'].ewm(span=period, adjust=False).mean()
 

@@ -1,10 +1,10 @@
 """
-Engine Module - Trading & Daten-Engine
+Engine Module - Trading & Data Engine
 ======================================
 
-Enthält:
-- data: Marktdaten-Abruf und Indikatoren-Berechnung
-- signal: Trade-Signal-Generierung
+Contains:
+- data: Market Data Fetching and Indicator Calculation
+- signal: Trade Signal Generation
 """
 
 # Lazy imports to avoid circular dependencies

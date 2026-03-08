@@ -105,8 +105,8 @@ def create_simulated_training_set(csv_name, max_sl_pct):
                     trade_found = True
                     break
 
-        # Wenn innerhalb 150 Bars kein Trade erfolgt ist, markieren als 0
-        # (Das ist ein Zeichen für schlechte Bedingungen oder Fehler)
+        # If no trade within 150 bars, mark as 0
+        # (This indicates poor conditions or lack of opportunity)
         if not trade_found:
             label = 0
             pip_diff = 0

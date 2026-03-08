@@ -1,11 +1,11 @@
 """
-ML Module - Genetischer Algorithmus & Datenverarbeitung
+ML Module - Genetic Algorithm & Data Processing
 ========================================================
 
-Enthält:
-- core: Evolutionärer Algorithmus für Feature-Gewichtungen
-- preprocessor: Datenaufbereitung und Label-Generierung
-- brain: Live-Feature-Vorbereitung für Predictions
+Contains:
+- core: Evolutionary Algorithm for Feature Weights
+- preprocessor: Data Preparation and Label Generation
+- brain: Live Feature Preparation for Predictions
 """
 
 # Lazy imports to avoid circular dependencies
