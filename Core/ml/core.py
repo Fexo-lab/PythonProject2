@@ -19,8 +19,8 @@ class EvolutionCore:
         pop = []
         for _ in range(15):
             dna = {
-                'weights': np.random.uniform(0.1, 3.0, self.features_count),      # Relative Multipliers!
-                'biases': np.random.uniform(-1.0, 1.0, self.features_count),     # Additive Offsets
+                'weights': np.ones(self.features_count),                           # Start at 1.0 (neutral multiplier)
+                'biases': np.zeros(self.features_count),                           # Start at 0.0 (no bias offset)
                 'max_depth': np.random.randint(4, 16),
                 'n_estimators': np.random.randint(10, 100)
             }
