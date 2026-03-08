@@ -60,10 +60,14 @@ def display_ml_training_page(params=None):
 
     if training_active:
         with st.status("Preparing data...") as status:
-            train_df, test_df = create_simulated_training_set(selected_csv, safety_cap_pips / 100000)
+            train_df, test_df = create_simulated_training_set(
+                selected_csv, 
+                safety_cap_pips / 100000,
+                punishment_pips=punishment_pips  # Now passes entry cost!
+            )
             if train_df is None: return
             _, features = get_feature_matrix(train_df)
-            status.update(label="Data ready!", state="complete")
+            status.update(label=f"Data ready! (Entry Cost: {punishment_pips}p)", state="complete")
 
         core = EvolutionCore(new_model_name, len(features))
 

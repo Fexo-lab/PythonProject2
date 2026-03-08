@@ -51,10 +51,15 @@ def get_feature_matrix(df):
     return df.dropna(), FEATURE_COLS
 
 
-def create_simulated_training_set(csv_name, max_sl_pct):
+def create_simulated_training_set(csv_name, max_sl_pct, punishment_pips=0):
     """
     Creates a training set with labels based on independent BUY/SELL logic.
     IMPORTANTLY: Uses Walk-Forward validation (time-respecting) for training data.
+    
+    Args:
+        csv_name: Dataset file name
+        max_sl_pct: Stop-Loss percentage
+        punishment_pips: Entry cost (spread/slippage) to subtract from each trade result
     """
     file_path = os.path.join(DATASETS_DIR, csv_name)
     if not os.path.exists(file_path):
@@ -84,8 +89,8 @@ def create_simulated_training_set(csv_name, max_sl_pct):
                 max_seen = p
                 curr_sl_buy = max_seen * (1 - (max_sl_pct * 0.5))
             if p <= curr_sl_buy:
-                buy_pips = (curr_sl_buy - entry_p) / entry_p * 1000
-                if buy_pips > 0:  # Only if profitable
+                buy_pips = (curr_sl_buy - entry_p) / entry_p * 1000 - punishment_pips  # Subtract entry cost!
+                if buy_pips > 0:  # Only if profitable after entry cost
                     best_label = 1
                     best_pip_diff = buy_pips
                 break
@@ -101,8 +106,8 @@ def create_simulated_training_set(csv_name, max_sl_pct):
                 min_seen = p
                 curr_sl_sell = min_seen * (1 + (max_sl_pct * 0.5))
             if p >= curr_sl_sell:
-                sell_pips = (entry_p - curr_sl_sell) / entry_p * 1000
-                if sell_pips > 0:  # Only if profitable
+                sell_pips = (entry_p - curr_sl_sell) / entry_p * 1000 - punishment_pips  # Subtract entry cost!
+                if sell_pips > 0:  # Only if profitable after entry cost
                     # Prefer SELL over BUY if it's more profitable
                     if sell_pips > best_pip_diff:
                         best_label = 2
