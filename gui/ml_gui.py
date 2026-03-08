@@ -36,16 +36,41 @@ def display_ml_training_page(params=None):
     st.divider()
 
     # --- CONFIGURATION ---
-    col1, col2 = st.columns(2)
-    safety_cap_pips = col1.slider(
-        "Maximum Safety SL (Pips)", 
-        50, 1000, 300,
-        help="Stop-Loss distance. Larger = longer trades, riskier. Smaller = faster exit, less loss"
+    col1, col2, col3 = st.columns(3)
+    
+    # Stop Loss Mode Selection
+    sl_mode = col1.radio(
+        "Stop Loss Mode",
+        ["ATR-Adaptive", "Fixed %"],
+        help="ATR-Adaptive: Adjusts to market volatility (Recommended)\nFixed %: Static percentage (Simpler)"
     )
-    punishment_pips = col2.slider(
-        "Entry Punishment (Pips)", 
+    use_atr_sl = sl_mode == "ATR-Adaptive"
+    
+    if use_atr_sl:
+        atr_multiplier = col2.slider(
+            "ATR Multiplier",
+            0.5, 3.0, 1.5, 0.1,
+            help="Stop Loss = Entry ± (ATR × Multiplier)\n1.5 = moderate, 2.0 = wider, 1.0 = tighter"
+        )
+        safety_cap_pips = col3.slider(
+            "Fallback SL (Pips)",
+            50, 500, 200,
+            help="Used if ATR unavailable"
+        )
+    else:
+        atr_multiplier = 1.5  # Default, unused
+        safety_cap_pips = col2.slider(
+            "Fixed Stop Loss (%)",
+            0.1, 2.0, 0.3, 0.1,
+            help="Stop-Loss as % of price. 0.3% = tight, 1.0% = moderate, 2.0% = wide"
+        )
+        safety_cap_pips = safety_cap_pips / 100  # Convert % to decimal
+        col3.empty()  # Placeholder for alignment
+    
+    punishment_pips = st.slider(
+        "Entry Punishment (Pips)",
         0, 100, 25,
-        help="⚠️ DEPRECATED: No longer used (new fitness formula uses Win Rate + Profit Factor)"
+        help="⚠️ DEPRECATED: Entry cost (spread/slippage)"
     )
 
     csv_files = [f for f in os.listdir(DATASET_DIR) if f.endswith('.csv')]
@@ -60,14 +85,26 @@ def display_ml_training_page(params=None):
 
     if training_active:
         with st.status("Preparing data...") as status:
+            # Handle pips vs percentage conversion
+            if use_atr_sl:
+                # ATR mode: convert pips to percentage for fallback
+                max_sl_pct = safety_cap_pips / 100000  # Pips to %
+                sl_config = f"ATR (×{atr_multiplier}), Fallback {safety_cap_pips}p"
+            else:
+                # Fixed % mode
+                max_sl_pct = safety_cap_pips  # Already in decimal
+                sl_config = f"Fixed {max_sl_pct*100:.1f}%"
+            
             train_df, test_df = create_simulated_training_set(
-                selected_csv, 
-                safety_cap_pips / 100000,
-                punishment_pips=punishment_pips  # Now passes entry cost!
+                selected_csv,
+                max_sl_pct,
+                punishment_pips=punishment_pips,
+                use_atr_sl=use_atr_sl,
+                atr_multiplier=atr_multiplier
             )
             if train_df is None: return
             _, features = get_feature_matrix(train_df)
-            status.update(label=f"Data ready! (Entry Cost: {punishment_pips}p)", state="complete")
+            status.update(label=f"Data ready! (SL: {sl_config})", state="complete")
 
         core = EvolutionCore(new_model_name, len(features))
 

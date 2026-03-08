@@ -97,7 +97,7 @@ class EvolutionCore:
                 min_samples_leaf=5,           # Prevent single-sample leaves
                 min_samples_split=10,         # Prevent excessive splitting
                 max_features=0.7,             # Use only 70% of features per split
-                subsample=0.9,                # Use 90% of samples (row subsampling)
+                max_samples=0.9,              # Use 90% of samples per tree (bootstrap sampling)
                 n_jobs=-1,
                 random_state=None
             )

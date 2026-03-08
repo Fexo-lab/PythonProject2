@@ -51,15 +51,19 @@ def get_feature_matrix(df):
     return df.dropna(), FEATURE_COLS
 
 
-def create_simulated_training_set(csv_name, max_sl_pct, punishment_pips=0):
+def create_simulated_training_set(csv_name, max_sl_pct, punishment_pips=0, use_atr_sl=True, atr_multiplier=1.5):
     """
     Creates a training set with labels based on independent BUY/SELL logic.
     IMPORTANTLY: Uses Walk-Forward validation (time-respecting) for training data.
     
+    IMPROVED: Uses ATR-based Stop Loss (volatility-adaptive) instead of fixed %
+    
     Args:
         csv_name: Dataset file name
-        max_sl_pct: Stop-Loss percentage
+        max_sl_pct: Fallback Stop-Loss percentage (if use_atr_sl=False)
         punishment_pips: Entry cost (spread/slippage) to subtract from each trade result
+        use_atr_sl: Use ATR-based stop loss (True) or fixed % (False)
+        atr_multiplier: ATR multiplier for stop loss distance (1.5 = 1.5*ATR)
     """
     file_path = os.path.join(DATASETS_DIR, csv_name)
     if not os.path.exists(file_path):
@@ -69,44 +73,92 @@ def create_simulated_training_set(csv_name, max_sl_pct, punishment_pips=0):
     # Important: get_feature_matrix provides normalized data
     df, _ = get_feature_matrix(df_raw)
 
+    # Calculate RAW (non-normalized) ATR for stop loss calculations
+    # The ATR in get_feature_matrix is normalized (divided by Close) for feature engineering
+    # But for stop loss, we need the actual ATR in price units
+    if use_atr_sl:
+        tr_raw = pd.concat([
+            (df_raw['High'] - df_raw['Low']),
+            (df_raw['High'] - df_raw['Close'].shift()).abs(),
+            (df_raw['Low'] - df_raw['Close'].shift()).abs()
+        ], axis=1).max(axis=1)
+        atr_raw = tr_raw.rolling(window=14).mean()  # RAW ATR in points, not normalized
+        df['atr_raw'] = atr_raw.values  # Store for later use
+    else:
+        df['atr_raw'] = None
+    
     labels, pip_results = [], []
     prices = df['Close'].values
+    atr_raw_values = df['atr_raw'].values if use_atr_sl else None
 
     # Independent BUY/SELL Labeling (Not "SELL only if BUY fails")
     for i in range(len(prices)):
         entry_p = prices[i]
         best_label = 0  # Default: HOLD
         best_pip_diff = 0
+        
+        # Get RAW ATR value at entry point (in price units, not normalized)
+        atr_val = atr_raw_values[i] if use_atr_sl and i < len(atr_raw_values) and atr_raw_values[i] > 0 else None
 
-        # ===== BUY SCENARIO (Label 1) =====
-        curr_sl_buy = entry_p * (1 - max_sl_pct)
-        max_seen = entry_p
+        # ===== BUY SCENARIO (Label 1) - ATR-based =====
+        if use_atr_sl and atr_val is not None:
+            # ATR Stop Loss: Entry - (ATR * Multiplier) in price units
+            sl_distance = atr_val * atr_multiplier
+            curr_sl_buy = entry_p - sl_distance
+            # Trailing stop: if new high, reduce stop loss by half the new distance
+            max_seen = entry_p
+        else:
+            # Fallback: percentage-based
+            curr_sl_buy = entry_p * (1 - max_sl_pct)
+            max_seen = entry_p
+        
         buy_pips = 0
         for j in range(1, 150):
             if i + j >= len(prices): break
             p = prices[i + j]
             if p > max_seen:
                 max_seen = p
-                curr_sl_buy = max_seen * (1 - (max_sl_pct * 0.5))
+                if use_atr_sl and atr_val is not None:
+                    # Trailing stop: reduce stop distance to half ATR
+                    new_atr_dist = atr_val * (atr_multiplier * 0.5)
+                    curr_sl_buy = max(curr_sl_buy, max_seen - new_atr_dist)
+                else:
+                    curr_sl_buy = max(curr_sl_buy, max_seen * (1 - (max_sl_pct * 0.5)))
+            
             if p <= curr_sl_buy:
-                buy_pips = (curr_sl_buy - entry_p) / entry_p * 1000 - punishment_pips  # Subtract entry cost!
+                buy_pips = (curr_sl_buy - entry_p) / entry_p * 1000 - punishment_pips
                 if buy_pips > 0:  # Only if profitable after entry cost
                     best_label = 1
                     best_pip_diff = buy_pips
                 break
 
-        # ===== SELL SCENARIO (Label 2) - INDEPENDENT of BUY =====
-        curr_sl_sell = entry_p * (1 + max_sl_pct)
-        min_seen = entry_p
+        # ===== SELL SCENARIO (Label 2) - ATR-based - INDEPENDENT of BUY =====
+        if use_atr_sl and atr_val is not None:
+            # ATR Stop Loss: Entry + (ATR * Multiplier)
+            sl_distance = atr_val * atr_multiplier
+            curr_sl_sell = entry_p + sl_distance
+            # Trailing stop for short
+            min_seen = entry_p
+        else:
+            # Fallback: percentage-based
+            curr_sl_sell = entry_p * (1 + max_sl_pct)
+            min_seen = entry_p
+        
         sell_pips = 0
         for j in range(1, 150):
             if i + j >= len(prices): break
             p = prices[i + j]
             if p < min_seen:
                 min_seen = p
-                curr_sl_sell = min_seen * (1 + (max_sl_pct * 0.5))
+                if use_atr_sl and atr_val is not None:
+                    # Trailing stop: reduce stop distance to half ATR
+                    new_atr_dist = atr_val * (atr_multiplier * 0.5)
+                    curr_sl_sell = min(curr_sl_sell, min_seen + new_atr_dist)
+                else:
+                    curr_sl_sell = min(curr_sl_sell, min_seen * (1 + (max_sl_pct * 0.5)))
+            
             if p >= curr_sl_sell:
-                sell_pips = (entry_p - curr_sl_sell) / entry_p * 1000 - punishment_pips  # Subtract entry cost!
+                sell_pips = (entry_p - curr_sl_sell) / entry_p * 1000 - punishment_pips
                 if sell_pips > 0:  # Only if profitable after entry cost
                     # Prefer SELL over BUY if it's more profitable
                     if sell_pips > best_pip_diff:
