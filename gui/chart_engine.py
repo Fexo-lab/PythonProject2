@@ -1,6 +1,21 @@
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
+import requests
+
+
+def search_ticker(query):
+    """Search for symbols via the Yahoo Finance API."""
+    if not query or len(query) < 2:
+        return []
+    try:
+        url = f"https://query2.finance.yahoo.com/v1/finance/search?q={query}"
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        response = requests.get(url, headers=headers, timeout=5)
+        data = response.json()
+        return [f"{q.get('symbol')} | {q.get('shortname', 'Asset')}" for q in data.get('quotes', [])]
+    except:
+        return []
 
 
 def create_trading_chart(df):
@@ -50,6 +65,14 @@ def display_stats(df):
 
 
 def display_terminal(placeholder):
-    # Simple symbol switcher
-    sym = st.text_input("Change Symbol (e.g. SI=F):", placeholder)
-    return sym if sym else None
+    """Symbol switcher with search functionality (like Dataset page)."""
+    search_query = st.text_input("Change Symbol (e.g. SI=F):", placeholder)
+    
+    selected_symbol = None
+    if search_query:
+        suggestions = search_ticker(search_query)
+        if suggestions:
+            choice = st.selectbox("Found Symbols:", suggestions)
+            selected_symbol = choice.split(" | ")[0]
+    
+    return selected_symbol if selected_symbol else None

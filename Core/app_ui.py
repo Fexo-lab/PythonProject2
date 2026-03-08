@@ -12,6 +12,7 @@ from Core.engine.data import get_market_data, add_indicators
 from gui.chart_engine import create_trading_chart, display_terminal, display_stats, display_live_log
 from gui.ml_gui import display_ml_training_page
 from gui.dataset_gui import display_dataset_page
+from gui.news_sidebar import display_news_page
 from Core.engine.signal import execute_trade_decision
 
 # App Configuration
@@ -81,6 +82,10 @@ if page == "📈 Live Chart":
             if new_sym and new_sym != st.session_state.current_symbol:
                 st.session_state.current_symbol = new_sym
                 st.rerun()
+
+    # --- NEWS SIDEBAR ---
+    st.divider()
+    display_news_page(st.session_state.current_symbol)
 
 # --- PAGE 2: ML TRAINING ---
 elif page == "🧠 ML Training":
