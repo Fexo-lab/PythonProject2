@@ -25,16 +25,17 @@ class Evaluator:
         X_train_scaled = (X_train.values * weights) + biases
         X_test_scaled = (X_test.values * weights) + biases
 
-        # Train model with REGULARIZATION
-        safe_max_depth = min(int(max_depth), 10)
+        # Train model with AGGRESSIVE REGULARIZATION
+        safe_max_depth = min(int(max_depth), 6)  # Max depth: 6 (was 10)
         
         model = RandomForestClassifier(
             n_estimators=max(int(n_estimators), 20),
-            max_depth=safe_max_depth,
-            min_samples_leaf=5,           # Prevent single-sample leaves
-            min_samples_split=10,         # Prevent excessive splitting
-            max_features=0.7,             # Use only 70% of features per split
-            max_samples=0.9,              # Use 90% of samples (row subsampling)
+            max_depth=safe_max_depth,                # Shallower trees prevent overfitting
+            min_samples_leaf=15,                     # Higher minimum: prevent single-sample leaves
+            min_samples_split=30,                    # Higher split threshold: prevent excessive splitting
+            max_features=0.5,                        # Use only 50% of features per split (was 0.7)
+            max_samples=0.8,                         # Use 80% of samples (was 0.9)
+            class_weight='balanced',                 # Weight minority classes (SELL/SHORT)
             n_jobs=-1,
             random_state=None
         )

@@ -46,7 +46,7 @@ with st.sidebar:
 # --- PAGE 1: LIVE CHART ---
 if page == "📈 Live Chart":
     st.subheader(f"Trading Terminal: {st.session_state.current_symbol}")
-    col_main, col_side = st.columns([3.5, 1.2])
+    col_main, col_side = st.columns([2.8, 1.5])
 
     with col_main:
         # Load data
@@ -82,10 +82,11 @@ if page == "📈 Live Chart":
             if new_sym and new_sym != st.session_state.current_symbol:
                 st.session_state.current_symbol = new_sym
                 st.rerun()
-
-    # --- NEWS SIDEBAR ---
-    st.divider()
-    display_news_page(st.session_state.current_symbol)
+        
+        # --- NEWS SIDEBAR IN RIGHT COLUMN ---
+        st.divider()
+        with st.expander("📰 Asset News", expanded=False):
+            display_news_page(st.session_state.current_symbol)
 
 # --- PAGE 2: ML TRAINING ---
 elif page == "🧠 ML Training":
