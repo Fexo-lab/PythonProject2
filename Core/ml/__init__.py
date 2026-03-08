@@ -8,8 +8,5 @@ Enthält:
 - brain: Live-Feature-Vorbereitung für Predictions
 """
 
-from .core import EvolutionCore
-from .preprocessor import get_feature_matrix, create_simulated_training_set
-from .brain import prepare_live_features
-
+# Lazy imports to avoid circular dependencies
 __all__ = ['EvolutionCore', 'get_feature_matrix', 'create_simulated_training_set', 'prepare_live_features']
