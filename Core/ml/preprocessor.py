@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 import os
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 
 from Core.config import FEATURE_COLS, DATASETS_DIR
 
@@ -120,6 +122,46 @@ def create_simulated_training_set(csv_name, max_sl_pct):
     # Remove the first 100 rows (due to indicator warmup)
     full_df = df.iloc[100:].copy().reset_index(drop=True)
 
-    # 80/20 Train-Test Split
-    split_idx = int(len(full_df) * 0.8)
-    return full_df.iloc[:split_idx].copy(), full_df.iloc[split_idx:].copy()
+    # STRATIFIED TRAIN-TEST SPLIT (ensures balanced class distribution)
+    # This prevents one set from having disproportionately more BUY/SELL/HOLD
+    train_df, test_df = train_test_split(
+        full_df, 
+        test_size=0.2,
+        random_state=42,
+        stratify=full_df['target_label']  # Balance class distribution
+    )
+    
+    return train_df.copy().reset_index(drop=True), test_df.copy().reset_index(drop=True)
+
+
+def analyze_feature_importance(X_train, X_test, y_train, y_test):
+    """
+    Analyzes which features contribute most to predictions.
+    Returns important features to remove noise and reduce overfitting.
+    """
+    from sklearn.ensemble import RandomForestClassifier
+    
+    # Train a minimal model just for feature analysis
+    model = RandomForestClassifier(
+        n_estimators=50, max_depth=5, random_state=42, n_jobs=-1
+    )
+    model.fit(X_train, y_train)
+    
+    # Get feature importance
+    importances = np.abs(model.feature_importances_)
+    feature_importance_dict = dict(zip(X_train.columns, importances))
+    
+    # Rank features
+    sorted_features = sorted(feature_importance_dict.items(), key=lambda x: x[1], reverse=True)
+    
+    return feature_importance_dict, sorted_features
+
+
+def get_top_features(feature_importance_dict, top_n=6):
+    """
+    Returns top N features by importance.
+    Only use the best features to reduce noise and overfitting.
+    """
+    sorted_dict = sorted(feature_importance_dict.items(), key=lambda x: x[1], reverse=True)
+    top_features = [f[0] for f in sorted_dict[:top_n]]
+    return top_features

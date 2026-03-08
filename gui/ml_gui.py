@@ -7,7 +7,7 @@ import shutil
 import altair as alt
 
 from Core.config import FEATURE_COLS, MODELS_DIR, DATASETS_DIR
-from Core.ml.preprocessor import create_simulated_training_set, get_feature_matrix
+from Core.ml.preprocessor import create_simulated_training_set, get_feature_matrix, analyze_feature_importance, get_top_features
 from Core.ml.core import EvolutionCore
 
 MODEL_DIR = MODELS_DIR
@@ -63,7 +63,26 @@ def display_ml_training_page(params=None):
             train_df, test_df = create_simulated_training_set(selected_csv, safety_cap_pips / 100000)
             if train_df is None: return
             _, features = get_feature_matrix(train_df)
-            status.update(label="Data ready!", state="complete")
+            
+            # Feature Importance Analysis
+            X_train = train_df[features]
+            y_train = train_df['target_label']
+            X_test = test_df[features]
+            y_test = test_df['target_label']
+            
+            feature_imp_dict, sorted_features = analyze_feature_importance(X_train, X_test, y_train, y_test)
+            top_features_list = get_top_features(feature_imp_dict, top_n=6)
+            
+            status.update(label=f"Data ready! Using top {len(top_features_list)} features.", state="complete")
+
+        # Show Feature Importance
+        with st.expander("📊 Feature Importance Analysis", expanded=False):
+            st.write("**Top Features for Trading Signals:**")
+            feat_df = pd.DataFrame([
+                {"Feature": f, "Importance": round(score, 4)} 
+                for f, score in sorted_features
+            ])
+            st.dataframe(feat_df, use_container_width=True)
 
         core = EvolutionCore(new_model_name, len(features))
 
