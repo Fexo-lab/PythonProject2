@@ -45,210 +45,7 @@ class EvolutionCore:
         X_train, y_train, pips_train = train_df[FEATURE_COLS], train_df['target_label'], train_df['pip_result'].values
         X_test, y_test, pips_test = test_df[FEATURE_COLS], test_df['target_label'], test_df['pip_result'].values
 
-        fitness_scores = []
-
-        for dna in self.population:
-            # Apply weights and biases to the data
-            weights = dna['weights']
-            biases = dna['biases']
-            max_depth = dna['max_depth']
-            n_estimators = dna['n_estimators']
-            
-            X_train_scaled = (X_train.values * weights) + biases
-            X_test_scaled = (X_test.values * weights) + biases
-
-            # Model with evolved hyperparameters
-            model = RandomForestClassifier(
-                n_estimators=int(n_estimators), 
-                max_depth=int(max_depth), 
-                n_jobs=-1, 
-                random_state=None
-            )
-            model.fit(X_train_scaled, y_train)
-
-            # === TRAIN-SET EVALUATION ===
-            probs = model.predict_proba(X_train_scaled)
-            if probs.shape[1] > 1:
-                preds_train = model.classes_[np.argmax(probs, axis=1)]
-            else:
-                preds_train = np.zeros(len(X_train), dtype=int)
-            
-            # Separate: Long (1) and Short (2) Trades
-            long_idx = np.where(preds_train == 1)[0]
-            short_idx = np.where(preds_train == 2)[0]
-            
-            # Long Statistiken
-            long_pips = pips_train[long_idx] if len(long_idx) > 0 else np.array([])
-            long_winners = np.sum(long_pips > 0) if len(long_pips) > 0 else 0
-            long_total_pips = np.sum(long_pips) if len(long_pips) > 0 else 0
-            
-            # Short Statistiken
-            short_pips = pips_train[short_idx] if len(short_idx) > 0 else np.array([])
-            short_winners = np.sum(short_pips > 0) if len(short_pips) > 0 else 0
-            short_total_pips = np.sum(short_pips) if len(short_pips) > 0 else 0
-            
-            total_trades = len(long_idx) + len(short_idx)
-            total_pips_train = long_total_pips + short_total_pips
-            
-            # === NEW FITNESS LOGIC for TRAIN (similar to TEST) ===
-            if total_trades > 0:
-                # Win Rate in Training
-                total_winners = long_winners + short_winners
-                train_wr = (total_winners / total_trades) * 100
-                
-                # Profit Factor in Training
-                all_train_pips = np.concatenate([long_pips, short_pips]) if len(long_pips) > 0 or len(short_pips) > 0 else np.array([])
-                train_winners = all_train_pips[all_train_pips > 0]
-                train_losers = all_train_pips[all_train_pips < 0]
-                
-                if len(train_winners) > 0 and len(train_losers) > 0:
-                    train_avg_win = np.mean(train_winners)
-                    train_avg_loss = abs(np.mean(train_losers))
-                    train_profit_factor = train_avg_win / train_avg_loss if train_avg_loss > 0 else 1.0
-                else:
-                    train_profit_factor = 1.0 if len(train_winners) > 0 else 0.0
-                
-                train_fit = total_pips_train * 0.3  # Actual Pips zu 30%
-                train_fit += max(0, (train_wr - 50) * 100)  # Win Rate Bonus
-                train_fit += max(0, (train_profit_factor - 1.0) * 500)  # Profit Factor Bonus
-                
-                if total_trades >= 100:
-                    train_fit += 1000
-                elif total_trades >= 50:
-                    train_fit += 500
-            else:
-                train_fit = -10000  # Keine Trades = sehr schlecht
-
-            # === TEST-SET EVALUATION ===
-            t_probs = model.predict_proba(X_test_scaled)
-            if t_probs.shape[1] > 1:
-                t_preds = model.classes_[np.argmax(t_probs, axis=1)]
-            else:
-                t_preds = np.zeros(len(X_test), dtype=int)
-            
-            # Separate: Long and Short in test set
-            t_long_idx = np.where(t_preds == 1)[0]
-            t_short_idx = np.where(t_preds == 2)[0]
-            
-            # Long Statistics in test set
-            t_long_pips = pips_test[t_long_idx] if len(t_long_idx) > 0 else np.array([])
-            t_long_winners = np.sum(t_long_pips > 0) if len(t_long_pips) > 0 else 0
-            t_long_total_pips = np.sum(t_long_pips) if len(t_long_pips) > 0 else 0
-            
-            # Short Statistics in test set
-            t_short_pips = pips_test[t_short_idx] if len(t_short_idx) > 0 else np.array([])
-            t_short_winners = np.sum(t_short_pips > 0) if len(t_short_pips) > 0 else 0
-            t_short_total_pips = np.sum(t_short_pips) if len(t_short_pips) > 0 else 0
-            
-            t_total_trades = len(t_long_idx) + len(t_short_idx)
-            t_total_pips = t_long_total_pips + t_short_total_pips
-            
-            # === NEW FITNESS LOGIC: Profit Factor & Win Rate focused ===
-            if t_total_trades > 0:
-                # Win Rate
-                t_total_winners = t_long_winners + t_short_winners
-                win_rate = (t_total_winners / t_total_trades) * 100
-                
-                # Profit Factor Calculation
-                all_pips = np.concatenate([t_long_pips, t_short_pips]) if len(t_long_pips) > 0 or len(t_short_pips) > 0 else np.array([])
-                winners = all_pips[all_pips > 0]
-                losers = all_pips[all_pips < 0]
-                
-                if len(winners) > 0 and len(losers) > 0:
-                    avg_win = np.mean(winners)
-                    avg_loss = abs(np.mean(losers))
-                    profit_factor = avg_win / avg_loss if avg_loss > 0 else 1.0
-                else:
-                    profit_factor = 1.0 if len(winners) > 0 else 0.0
-                
-                # NEW FITNESS FORMULA (instead of simple Pips punishment):
-                # 1. Base: Actual Pips (only 0.3x weighted, as too volatile)
-                # 2. +Bonus: Win Rate above 50% (each % extra = +100 points)
-                # 3. +Bonus: Profit Factor above 1.0 (each 0.1x = +500 points)
-                # 4. +Base: Trade Count (only 20 trades minimum for significance)
-                
-                test_fit = t_total_pips * 0.3  # Actual Pips count, but only at 30%
-                
-                # Win Rate Bonus: 50% = 0 points, 60% = 1000 points, 70% = 2000 points
-                win_rate_bonus = max(0, (win_rate - 50) * 100)
-                test_fit += win_rate_bonus
-                
-                # Profit Factor Bonus: 1.0 = 0 points, 1.5 = 250 points, 2.0 = 500 points
-                profit_factor_bonus = max(0, (profit_factor - 1.0) * 500)
-                test_fit += profit_factor_bonus
-                
-                # Trade Count: More Trades = Higher Confidence (but not unlimited)
-                if t_total_trades >= 100:
-                    test_fit += 1000  # Bonus for statistical significance
-                elif t_total_trades >= 50:
-                    test_fit += 500
-            else:
-                test_fit = -10000
-                win_rate = 0.0
-                profit_factor = 0.0
-
-            # === TOTAL FITNESS: 70% Test, 30% Train ===
-            total_fit = (0.7 * test_fit) + (0.3 * train_fit)
-            
-            # === QUALITY METRICS ===
-            from Core.config import OVERFIT_THRESHOLD, MIN_TRADES_FOR_SIGNIFICANCE, REALISTIC_WR_MIN, REALISTIC_WR_MAX, REALISTIC_PF_MIN
-            
-            # Overfitting Detection
-            overfitting_ratio = abs(train_fit - test_fit) / (abs(test_fit) + 1)
-            is_overfitting = overfitting_ratio > OVERFIT_THRESHOLD
-            
-            # Statistical Significance
-            is_significant = t_total_trades >= MIN_TRADES_FOR_SIGNIFICANCE
-            
-            # Realistic Check
-            is_realistic = (REALISTIC_WR_MIN <= win_rate <= REALISTIC_WR_MAX) and (profit_factor >= REALISTIC_PF_MIN)
-            
-            # Feature Importance (largest Weights first)
-            weight_importance = np.abs(weights / np.sum(np.abs(weights)) * 100)
-            
-            # Quality Score (0-1)
-            quality_score = (1.0 if not is_overfitting else 0.5) * \
-                           (1.0 if is_significant else 0.7) * \
-                           (1.0 if is_realistic else 0.5)
-
-            fitness_scores.append({
-                'total_fit': total_fit, 
-                'test_fit': test_fit,
-                'train_fit': train_fit,
-                'fit': train_fit,  # For backward compatibility
-                'weights': weights, 
-                'biases': biases,
-                'max_depth': max_depth, 
-                'n_estimators': n_estimators, 
-                'model': model,
-                # BACKWARD-COMPATIBLE Fields (for GUI)
-                'lw': len(long_idx),      # Long Trade Count
-                'sw': len(short_idx),     # Short Trade Count
-                'wr': win_rate,           # Win Rate %
-                # NEW DETAILED Fields
-                'long_winners': long_winners,
-                'long_total_trades': len(long_idx),
-                'long_total_pips': long_total_pips,
-                'short_winners': short_winners,
-                'short_total_trades': len(short_idx),
-                'short_total_pips': short_total_pips,
-                'test_long_winners': t_long_winners,
-                'test_long_total_trades': len(t_long_idx),
-                'test_long_total_pips': t_long_total_pips,
-                'test_short_winners': t_short_winners,
-                'test_short_total_trades': len(t_short_idx),
-                'test_short_total_pips': t_short_total_pips,
-                'profit_factor': profit_factor,
-                # QUALITY METRICS
-                'overfitting_ratio': overfitting_ratio,
-                'is_overfitting': is_overfitting,
-                'is_significant': is_significant,
-                'is_realistic': is_realistic,
-                'quality_score': quality_score,
-                'feature_importance': weight_importance.tolist()
-            })
-
-        # Sort by fitness
+        fitness_scores = self._evaluate_population(self.population, X_train, y_train, pips_train, X_test, y_test, pips_test)
         fitness_scores.sort(key=lambda x: x['total_fit'], reverse=True)
         curr = fitness_scores[0]
 
@@ -267,19 +64,267 @@ class EvolutionCore:
                     'train_fit': curr['train_fit']
                 }, f)
 
-        # Evolution
         self.population = self._evolve_custom(fitness_scores)
-
         return curr, is_better
 
+    def _evaluate_population(self, population, X_train, y_train, pips_train, X_test, y_test, pips_test):
+        fitness_scores = []
+        for dna in population:
+            score = self._evaluate_single_dna(dna, X_train, y_train, pips_train, X_test, y_test, pips_test)
+            fitness_scores.append(score)
+        return fitness_scores
+
+    def _evaluate_single_dna(self, dna, X_train, y_train, pips_train, X_test, y_test, pips_test):
+            # Apply weights and biases to the data
+            weights = dna['weights']
+            biases = dna['biases']
+            max_depth = dna['max_depth']
+            n_estimators = dna['n_estimators']
+            
+            X_train_scaled = (X_train.values * weights) + biases
+            X_test_scaled = (X_test.values * weights) + biases
+
+            # Model with evolved hyperparameters
+            model = RandomForestClassifier(
+                n_estimators=int(n_estimators), 
+                max_depth=int(max_depth), 
+                n_jobs=-1, 
+                random_state=None
+            )
+            model.fit(X_train_scaled, y_train)
+
+            # Evaluate on both train and test sets
+            train_fit, train_stats = self._evaluate_train_set(model, X_train_scaled, y_train, pips_train)
+            test_fit, test_stats, win_rate, profit_factor = self._evaluate_test_set(model, X_test_scaled, y_test, pips_test)
+
+            # Calculate total fitness
+            total_fit = (0.7 * test_fit) + (0.3 * train_fit)
+            
+            # Calculate quality metrics
+            quality_score, overfitting_ratio, is_overfitting, is_significant, is_realistic, weight_importance = self._calculate_quality_metrics(
+                train_fit, test_fit, test_stats['total_trades'], win_rate, profit_factor, weights
+            )
+
+            return {
+                'total_fit': total_fit, 
+                'test_fit': test_fit,
+                'train_fit': train_fit,
+                'fit': train_fit,
+                'weights': weights, 
+                'biases': biases,
+                'max_depth': max_depth, 
+                'n_estimators': n_estimators, 
+                'model': model,
+                'lw': train_stats['long_total_trades'],
+                'sw': train_stats['short_total_trades'],
+                'wr': win_rate,
+                'long_winners': train_stats['long_winners'],
+                'long_total_trades': train_stats['long_total_trades'],
+                'long_total_pips': train_stats['long_total_pips'],
+                'short_winners': train_stats['short_winners'],
+                'short_total_trades': train_stats['short_total_trades'],
+                'short_total_pips': train_stats['short_total_pips'],
+                'test_long_winners': test_stats['long_winners'],
+                'test_long_total_trades': test_stats['long_total_trades'],
+                'test_long_total_pips': test_stats['long_total_pips'],
+                'test_short_winners': test_stats['short_winners'],
+                'test_short_total_trades': test_stats['short_total_trades'],
+                'test_short_total_pips': test_stats['short_total_pips'],
+                'profit_factor': profit_factor,
+                'overfitting_ratio': overfitting_ratio,
+                'is_overfitting': is_overfitting,
+                'is_significant': is_significant,
+                'is_realistic': is_realistic,
+                'quality_score': quality_score,
+                'feature_importance': weight_importance.tolist()
+            }
+
+    def _evaluate_train_set(self, model, X_train_scaled, y_train, pips_train):
+            probs = model.predict_proba(X_train_scaled)
+            if probs.shape[1] > 1:
+                preds_train = model.classes_[np.argmax(probs, axis=1)]
+            else:
+                preds_train = np.zeros(len(X_train_scaled), dtype=int)
+            
+            # Separate: Long (1) and Short (2) Trades
+            long_idx = np.where(preds_train == 1)[0]
+            short_idx = np.where(preds_train == 2)[0]
+            
+            # Long Statistics
+            long_pips = pips_train[long_idx] if len(long_idx) > 0 else np.array([])
+            long_winners = np.sum(long_pips > 0) if len(long_pips) > 0 else 0
+            long_total_pips = np.sum(long_pips) if len(long_pips) > 0 else 0
+            
+            # Short Statistics
+            short_pips = pips_train[short_idx] if len(short_idx) > 0 else np.array([])
+            short_winners = np.sum(short_pips > 0) if len(short_pips) > 0 else 0
+            short_total_pips = np.sum(short_pips) if len(short_pips) > 0 else 0
+            
+            total_trades = len(long_idx) + len(short_idx)
+            total_pips_train = long_total_pips + short_total_pips
+            
+            train_fit = self._calculate_trade_fitness(
+                total_trades, long_winners, len(long_idx), short_winners, len(short_idx), 
+                long_pips, short_pips, total_pips_train
+            )
+            
+            train_stats = {
+                'long_winners': long_winners,
+                'long_total_trades': len(long_idx),
+                'long_total_pips': long_total_pips,
+                'short_winners': short_winners,
+                'short_total_trades': len(short_idx),
+                'short_total_pips': short_total_pips,
+                'total_trades': total_trades
+            }
+            
+            return train_fit, train_stats
+
+    def _evaluate_test_set(self, model, X_test_scaled, y_test, pips_test):
+            t_probs = model.predict_proba(X_test_scaled)
+            if t_probs.shape[1] > 1:
+                t_preds = model.classes_[np.argmax(t_probs, axis=1)]
+            else:
+                t_preds = np.zeros(len(X_test_scaled), dtype=int)
+            
+            # Separate: Long and Short in test set
+            t_long_idx = np.where(t_preds == 1)[0]
+            t_short_idx = np.where(t_preds == 2)[0]
+            
+            # Long Statistics
+            t_long_pips = pips_test[t_long_idx] if len(t_long_idx) > 0 else np.array([])
+            t_long_winners = np.sum(t_long_pips > 0) if len(t_long_pips) > 0 else 0
+            t_long_total_pips = np.sum(t_long_pips) if len(t_long_pips) > 0 else 0
+            
+            # Short Statistics
+            t_short_pips = pips_test[t_short_idx] if len(t_short_idx) > 0 else np.array([])
+            t_short_winners = np.sum(t_short_pips > 0) if len(t_short_pips) > 0 else 0
+            t_short_total_pips = np.sum(t_short_pips) if len(t_short_pips) > 0 else 0
+            
+            t_total_trades = len(t_long_idx) + len(t_short_idx)
+            t_total_pips = t_long_total_pips + t_short_total_pips
+            
+            win_rate, profit_factor = self._calculate_performance_metrics(t_long_pips, t_short_pips)
+            
+            test_fit = self._calculate_test_fitness(
+                t_total_trades, t_total_pips, win_rate, profit_factor
+            )
+            
+            test_stats = {
+                'long_winners': t_long_winners,
+                'long_total_trades': len(t_long_idx),
+                'long_total_pips': t_long_total_pips,
+                'short_winners': t_short_winners,
+                'short_total_trades': len(t_short_idx),
+                'short_total_pips': t_short_total_pips,
+                'total_trades': t_total_trades
+            }
+            
+            return test_fit, test_stats, win_rate, profit_factor
+
+    def _calculate_performance_metrics(self, long_pips, short_pips):
+            all_pips = np.concatenate([long_pips, short_pips]) if len(long_pips) > 0 or len(short_pips) > 0 else np.array([])
+            
+            if len(all_pips) == 0:
+                return 0.0, 0.0
+            
+            winners = all_pips[all_pips > 0]
+            losers = all_pips[all_pips < 0]
+            
+            # Win Rate calculation
+            if len(winners) > 0 or len(losers) > 0:
+                win_rate = (len(winners) / len(all_pips)) * 100
+            else:
+                win_rate = 0.0
+            
+            # Profit Factor calculation
+            if len(winners) > 0 and len(losers) > 0:
+                avg_win = np.mean(winners)
+                avg_loss = abs(np.mean(losers))
+                profit_factor = avg_win / avg_loss if avg_loss > 0 else 1.0
+            else:
+                profit_factor = 1.0 if len(winners) > 0 else 0.0
+            
+            return win_rate, profit_factor
+
+    def _calculate_trade_fitness(self, total_trades, long_winners, long_total_trades, short_winners, short_total_trades, long_pips, short_pips, total_pips):
+            if total_trades > 0:
+                train_wr = ((long_winners + short_winners) / total_trades) * 100
+                all_pips = np.concatenate([long_pips, short_pips]) if len(long_pips) > 0 or len(short_pips) > 0 else np.array([])
+                
+                if len(all_pips) > 0:
+                    train_winners = all_pips[all_pips > 0]
+                    train_losers = all_pips[all_pips < 0]
+                    
+                    if len(train_winners) > 0 and len(train_losers) > 0:
+                        train_avg_win = np.mean(train_winners)
+                        train_avg_loss = abs(np.mean(train_losers))
+                        train_profit_factor = train_avg_win / train_avg_loss if train_avg_loss > 0 else 1.0
+                    else:
+                        train_profit_factor = 1.0 if len(train_winners) > 0 else 0.0
+                else:
+                    train_profit_factor = 0.0
+                
+                fit = total_pips * 0.3
+                fit += max(0, (train_wr - 50) * 100)
+                fit += max(0, (train_profit_factor - 1.0) * 500)
+                
+                if total_trades >= 100:
+                    fit += 1000
+                elif total_trades >= 50:
+                    fit += 500
+                
+                return fit
+            else:
+                return -10000
+
+    def _calculate_test_fitness(self, t_total_trades, t_total_pips, win_rate, profit_factor):
+            if t_total_trades > 0:
+                test_fit = t_total_pips * 0.3
+                win_rate_bonus = max(0, (win_rate - 50) * 100)
+                test_fit += win_rate_bonus
+                
+                profit_factor_bonus = max(0, (profit_factor - 1.0) * 500)
+                test_fit += profit_factor_bonus
+                
+                if t_total_trades >= 100:
+                    test_fit += 1000
+                elif t_total_trades >= 50:
+                    test_fit += 500
+                
+                return test_fit
+            else:
+                return -10000
+
+    def _calculate_quality_metrics(self, train_fit, test_fit, total_trades, win_rate, profit_factor, weights):
+            from Core.config import OVERFIT_THRESHOLD, MIN_TRADES_FOR_SIGNIFICANCE, REALISTIC_WR_MIN, REALISTIC_WR_MAX, REALISTIC_PF_MIN
+            
+            # Overfitting Detection
+            overfitting_ratio = abs(train_fit - test_fit) / (abs(test_fit) + 1)
+            is_overfitting = overfitting_ratio > OVERFIT_THRESHOLD
+            
+            # Statistical Significance
+            is_significant = total_trades >= MIN_TRADES_FOR_SIGNIFICANCE
+            
+            # Realistic Check
+            is_realistic = (REALISTIC_WR_MIN <= win_rate <= REALISTIC_WR_MAX) and (profit_factor >= REALISTIC_PF_MIN)
+            
+            # Feature Importance
+            weight_importance = np.abs(weights / np.sum(np.abs(weights)) * 100)
+            
+            # Quality Score (0-1)
+            quality_score = (1.0 if not is_overfitting else 0.5) * \
+                           (1.0 if is_significant else 0.7) * \
+                           (1.0 if is_realistic else 0.5)
+            
+            return quality_score, overfitting_ratio, is_overfitting, is_significant, is_realistic, weight_importance
+
     def _evolve_custom(self, scores):
-        # 1. Take the 2 best parents
         parent1_dna = scores[0]
         parent2_dna = scores[1]
-
         new_population = []
 
-        # 1. Both parents directly into new generation (Elitism)
+        # Elitism: Keep both best parents
         new_population.append({
             'weights': parent1_dna['weights'].copy(),
             'biases': parent1_dna['biases'].copy(),
@@ -293,21 +338,33 @@ class EvolutionCore:
             'n_estimators': parent2_dna['n_estimators']
         })
 
-        # 2. Intelligent Crossover (Hybrid of both parents)
+        # Intelligent Crossover
+        child_hybrid = self._create_crossover_child(parent1_dna, parent2_dna)
+        new_population.append(child_hybrid)
+
+        # Mutated variants
+        mutated_children = self._create_mutated_children(parent1_dna, parent2_dna, 10)
+        new_population.extend(mutated_children)
+
+        # New random candidates for diversity
+        random_children = self._create_random_children(parent1_dna, 2)
+        new_population.extend(random_children)
+
+        return new_population
+
+    def _create_crossover_child(self, parent1_dna, parent2_dna):
         crossover_mask = np.random.rand(len(parent1_dna['weights'])) > 0.5
-        child_hybrid = {
+        return {
             'weights': np.where(crossover_mask, parent1_dna['weights'], parent2_dna['weights']).copy(),
             'biases': np.where(crossover_mask, parent1_dna['biases'], parent2_dna['biases']).copy(),
             'max_depth': parent1_dna['max_depth'] if np.random.rand() > 0.5 else parent2_dna['max_depth'],
             'n_estimators': parent1_dna['n_estimators'] if np.random.rand() > 0.5 else parent2_dna['n_estimators']
         }
-        new_population.append(child_hybrid)
 
-        # 3. 10 aggressive mutated variants of the best parents
-        for i in range(10):
+    def _create_mutated_children(self, parent1_dna, parent2_dna, count):
+        mutated_children = []
+        for i in range(count):
             parent_dna = parent1_dna if i % 2 == 0 else parent2_dna
-            
-            # Mutation strength varies (20-40% instead of 15-30%)
             mutation_strength = 0.2 + (i * 0.03)
             
             mutant = {
@@ -317,30 +374,33 @@ class EvolutionCore:
                 'n_estimators': parent_dna['n_estimators']
             }
             
-            # Weights mutate (now only 0.1-3.0 range)
-            weight_mask = np.random.rand(len(mutant['weights'])) < 0.5  # 50% of weights
+            # Mutate weights
+            weight_mask = np.random.rand(len(mutant['weights'])) < 0.5
             mutant['weights'][weight_mask] *= (1 + np.random.normal(0, mutation_strength, np.sum(weight_mask)))
             mutant['weights'] = np.clip(mutant['weights'], 0.1, 3.0)
             
-            # Biases mutate (-1 to 1)
+            # Mutate biases
             bias_mask = np.random.rand(len(mutant['biases'])) < 0.5
             mutant['biases'][bias_mask] += np.random.normal(0, mutation_strength * 0.5, np.sum(bias_mask))
             mutant['biases'] = np.clip(mutant['biases'], -1.0, 1.0)
             
-            # Hyperparameter mutate
+            # Mutate hyperparameters
             mutant['max_depth'] = int(np.clip(mutant['max_depth'] + np.random.randint(-2, 3), 4, 16))
             mutant['n_estimators'] = int(np.clip(mutant['n_estimators'] + np.random.randint(-10, 11), 10, 100))
             
-            new_population.append(mutant)
+            mutated_children.append(mutant)
+        
+        return mutated_children
 
-        # 4. Only 2 completely new candidates for diversity
-        for _ in range(2):
+    def _create_random_children(self, parent_dna, count):
+        random_children = []
+        for _ in range(count):
             random_dna = {
-                'weights': np.random.uniform(0.1, 3.0, len(parent1_dna['weights'])),
-                'biases': np.random.uniform(-1.0, 1.0, len(parent1_dna['weights'])),
+                'weights': np.random.uniform(0.1, 3.0, len(parent_dna['weights'])),
+                'biases': np.random.uniform(-1.0, 1.0, len(parent_dna['weights'])),
                 'max_depth': np.random.randint(4, 16),
                 'n_estimators': np.random.randint(10, 100)
             }
-            new_population.append(random_dna)
-
-        return new_population
+            random_children.append(random_dna)
+        
+        return random_children
