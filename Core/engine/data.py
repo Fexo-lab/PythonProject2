@@ -57,3 +57,23 @@ def add_indicators(df):
         df[f'EMA_{period}'] = df['Close'].ewm(span=period, adjust=False).mean()
 
     return df
+
+
+def get_asset_news(search_term):
+    """Fetch news for a given asset using yfinance."""
+    try:
+        # Create a ticker object with the asset name or symbol
+        assets_map = load_live_assets()
+        ticker_symbol = assets_map.get(search_term, search_term)
+        
+        # Fetch news using yfinance
+        ticker = yf.Ticker(ticker_symbol)
+        news = ticker.news
+        
+        if news:
+            return news
+        else:
+            return []
+    except Exception as e:
+        print(f"News Fetch Error for {search_term}: {e}")
+        return []
