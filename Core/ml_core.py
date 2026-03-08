@@ -93,8 +93,20 @@ class EvolutionCore:
 
         new_population = [parent1, parent2, child_avg]
 
-        # 3. 12 neue Probanden mit Random Werten auffüllen
-        while len(new_population) < 15:
+        # 3. 10 mutierte Varianten (Elitism mit Mutation statt reiner Randomness)
+        for i in range(10):
+            # Wähle einen Parent und mutiere ihn
+            parent = parent1 if i % 2 == 0 else parent2
+            mutation_strength = 0.05 + (i * 0.02)  # Variiert: 5%, 7%, 9%...
+            mutant = parent.copy()
+            # Mutiere einige Gene
+            mutation_mask = np.random.rand(self.features_count) < 0.3  # 30% der Gene mutieren
+            mutant[mutation_mask] += np.random.normal(0, mutation_strength, np.sum(mutation_mask))
+            mutant = np.clip(mutant, 0.1, 40.0)  # Werte im Bereich halten
+            new_population.append(mutant)
+
+        # 4. Nur 2 komplett neue Probanden für Diversität (statt 12!)
+        for _ in range(2):
             random_proband = np.random.uniform(0.1, 40.0, self.features_count)
             new_population.append(random_proband)
 
