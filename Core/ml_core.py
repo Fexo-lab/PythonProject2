@@ -31,7 +31,7 @@ class EvolutionCore:
 
         for weights in self.population:
             # Schnelles Modell für die Evolution
-            model = RandomForestClassifier(n_estimators=30, max_depth=8, n_jobs=-1, random_state=42)
+            model = RandomForestClassifier(n_estimators=30, max_depth=8, n_jobs=-1, random_state=None)
             model.fit(X_train.values * weights, y_train)
 
             # Vorhersage via predict_proba für mehr Kontrolle
@@ -88,26 +88,27 @@ class EvolutionCore:
         parent1 = scores[0]['weights'].copy()
         parent2 = scores[1]['weights'].copy()
 
-        # 2. Das Kind als Durchschnitt (AVG) bilden
-        child_avg = (parent1 + parent2) / 2.0
+        # 2. Intelligentes Crossover statt einfacher Average
+        crossover_mask = np.random.rand(len(parent1)) > 0.5
+        child_crossover = np.where(crossover_mask, parent1, parent2).copy()
 
-        new_population = [parent1, parent2, child_avg]
+        new_population = [parent1, parent2, child_crossover]
 
-        # 3. 10 mutierte Varianten (Elitism mit Mutation statt reiner Randomness)
+        # 3. 10 aggressive mutierte Varianten
         for i in range(10):
             # Wähle einen Parent und mutiere ihn
             parent = parent1 if i % 2 == 0 else parent2
-            mutation_strength = 0.05 + (i * 0.02)  # Variiert: 5%, 7%, 9%...
+            mutation_strength = 0.15 + (i * 0.05)  # Viel aggressiver: 15%, 20%, 25%...
             mutant = parent.copy()
-            # Mutiere einige Gene
-            mutation_mask = np.random.rand(self.features_count) < 0.3  # 30% der Gene mutieren
-            mutant[mutation_mask] += np.random.normal(0, mutation_strength, np.sum(mutation_mask))
+            # Mutiere 60% der Gene - viel mehr als vorher!
+            mutation_mask = np.random.rand(len(parent)) < 0.6
+            mutant[mutation_mask] *= (1 + np.random.normal(0, mutation_strength, np.sum(mutation_mask)))
             mutant = np.clip(mutant, 0.1, 40.0)  # Werte im Bereich halten
             new_population.append(mutant)
 
-        # 4. Nur 2 komplett neue Probanden für Diversität (statt 12!)
+        # 4. 2 komplett neue Probanden für Diversität
         for _ in range(2):
-            random_proband = np.random.uniform(0.1, 40.0, self.features_count)
+            random_proband = np.random.uniform(0.1, 40.0, len(parent1))
             new_population.append(random_proband)
 
         return new_population
