@@ -69,6 +69,7 @@ def create_simulated_training_set(csv_name, max_sl_pct):
     # Simulation des Trailing Stops für Labeling
     for i in range(len(prices)):
         label, pip_diff = 0, 0
+        trade_found = False
         entry_p = prices[i]
 
         # BUY Simulation
@@ -82,11 +83,13 @@ def create_simulated_training_set(csv_name, max_sl_pct):
                 curr_sl = max_seen * (1 - (max_sl_pct * 0.5))
             if p <= curr_sl:
                 pip_diff = (curr_sl - entry_p) / entry_p * 1000
-                label = 1 if curr_sl > entry_p * 1.0005 else 0
+                # Label basierend auf ob Gewinn oder Verlust (NICHT auf Profit-Schwelle!)
+                label = 1 if pip_diff > 0 else 0
+                trade_found = True
                 break
 
         # SELL Simulation (falls BUY nicht erfolgreich war)
-        if label == 0:
+        if not trade_found:
             curr_sl = entry_p * (1 + max_sl_pct)
             min_seen = entry_p
             for j in range(1, 150):
@@ -97,8 +100,16 @@ def create_simulated_training_set(csv_name, max_sl_pct):
                     curr_sl = min_seen * (1 + (max_sl_pct * 0.5))
                 if p >= curr_sl:
                     pip_diff = (entry_p - curr_sl) / entry_p * 1000
-                    label = 2 if curr_sl < entry_p * 0.9995 else 0
+                    # Label basierend auf ob Gewinn oder Verlust (NICHT auf Profit-Schwelle!)
+                    label = 2 if pip_diff > 0 else 0
+                    trade_found = True
                     break
+
+        # Wenn innerhalb 150 Bars kein Trade erfolgt ist, markieren als 0
+        # (Das ist ein Zeichen für schlechte Bedingungen oder Fehler)
+        if not trade_found:
+            label = 0
+            pip_diff = 0
 
         labels.append(label)
         pip_results.append(pip_diff)
