@@ -1,6 +1,9 @@
 import os, joblib, json, numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from Core.config import MODELS_DIR
+from Core.ml.evaluator import Evaluator
+from Core.ml.fitness import FitnessCalculator
+from Core.ml.evolution import Evolver
 
 
 class EvolutionCore:
@@ -45,7 +48,7 @@ class EvolutionCore:
         X_train, y_train, pips_train = train_df[FEATURE_COLS], train_df['target_label'], train_df['pip_result'].values
         X_test, y_test, pips_test = test_df[FEATURE_COLS], test_df['target_label'], test_df['pip_result'].values
 
-        fitness_scores = self._evaluate_population(self.population, X_train, y_train, pips_train, X_test, y_test, pips_test)
+        fitness_scores = Evaluator.evaluate_population(self.population, X_train, y_train, pips_train, X_test, y_test, pips_test, FitnessCalculator)
         fitness_scores.sort(key=lambda x: x['total_fit'], reverse=True)
         curr = fitness_scores[0]
 
@@ -64,7 +67,7 @@ class EvolutionCore:
                     'train_fit': curr['train_fit']
                 }, f)
 
-        self.population = self._evolve_custom(fitness_scores)
+        self.population = Evolver.evolve_custom(fitness_scores)
         return curr, is_better
 
     def _evaluate_population(self, population, X_train, y_train, pips_train, X_test, y_test, pips_test):
