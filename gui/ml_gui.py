@@ -295,6 +295,11 @@ def display_ml_training_page(params=None):
 
             # --- 2. EVENT LOG (WITH STATUS & TRADES) ---
             if is_better or cycle % 20 == 0:
+                # Calculate raw profit from pips (independent of ML)
+                long_pips = curr.get('long_total_pips', 0)
+                short_pips = curr.get('short_total_pips', 0)
+                total_pips = long_pips + short_pips
+                
                 dna_entry = {
                     "Cycle": cycle,
                     "Status": "⭐ RECORD" if is_better else "🔄 Update",
@@ -302,6 +307,7 @@ def display_ml_training_page(params=None):
                     "Test-Fit": f"{curr['test_fit']:,.0f}",
                     "WR%": f"{curr['wr']:.1f}%",
                     "PF": f"{curr.get('profit_factor', 0):.2f}",
+                    "Profit(Pips)": f"{total_pips:+.0f}",  # Raw profit from test trades
                     "L": f"{curr['long_total_trades']}T/{curr['long_winners']}W",
                     "S": f"{curr['short_total_trades']}T/{curr['short_winners']}W"
                 }
