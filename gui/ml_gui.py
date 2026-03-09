@@ -146,9 +146,27 @@ def display_ml_training_page(params=None):
         cycle = 0
         checkpoint_count = 0
         checkpoint_interval = 1000  # Every 1000 cycles
+        
+        # --- TIMER TRACKING ---
+        training_start_time = time.time()
+        cycle_times = []  # Track last 100 cycle times
+        last_cycle_time = training_start_time
+        
+        # Timer display container
+        timer_spot = st.empty()
 
         while training_active:
             cycle += 1
+            current_time = time.time()
+            
+            # Track cycle time (only after first cycle)
+            if cycle > 1:
+                cycle_time = current_time - last_cycle_time
+                cycle_times.append(cycle_time)
+                if len(cycle_times) > 100:
+                    cycle_times.pop(0)  # Keep only last 100 cycles
+            
+            last_cycle_time = current_time
             
             # Safety checks for long training runs
             if cycle > max_cycles:
@@ -206,6 +224,56 @@ def display_ml_training_page(params=None):
             if fitness_val >= current_max_fitness:
                 current_max_fitness = fitness_val
                 history_data.append({"Cycle": cycle, "Fitness": fitness_val, "Event": record_label})
+
+            # --- TIMER METRICS ---
+            if cycle % 5 == 0 and cycle_times:
+                avg_cycle_time = np.mean(cycle_times)
+                elapsed_time = current_time - training_start_time
+                
+                # Calculate time estimates
+                elapsed_h = int(elapsed_time // 3600)
+                elapsed_m = int((elapsed_time % 3600) // 60)
+                elapsed_s = int(elapsed_time % 60)
+                
+                # Last 100 cycles time
+                last_100_time = sum(cycle_times)
+                last_100_h = int(last_100_time // 3600)
+                last_100_m = int((last_100_time % 3600) // 60)
+                last_100_s = int(last_100_time % 60)
+                
+                # Estimate remaining time
+                cycles_remaining = max_cycles - cycle
+                est_remaining_time = cycles_remaining * avg_cycle_time
+                est_h = int(est_remaining_time // 3600)
+                est_m = int((est_remaining_time % 3600) // 60)
+                est_s = int(est_remaining_time % 60)
+                
+                with timer_spot.container():
+                    st.markdown("### ⏱️ Training Timer")
+                    col_t1, col_t2, col_t3, col_t4 = st.columns(4)
+                    
+                    col_t1.metric(
+                        "Elapsed",
+                        f"{elapsed_h}h {elapsed_m}m {elapsed_s}s",
+                        help="Total time since training started"
+                    )
+                    col_t2.metric(
+                        "Last 100 Cycles",
+                        f"{last_100_h}h {last_100_m}m {last_100_s}s",
+                        delta=f"{avg_cycle_time:.2f}s/cycle",
+                        help="Time for last 100 cycles + avg per cycle"
+                    )
+                    col_t3.metric(
+                        "Est. Remaining",
+                        f"{est_h}h {est_m}m {est_s}s",
+                        help=f"Estimated time to reach {max_cycles} cycles"
+                    )
+                    col_t4.metric(
+                        "Progress",
+                        f"{cycle}/{max_cycles}",
+                        delta=f"{(cycle/max_cycles)*100:.1f}%",
+                        help="Cycles completed"
+                    )
 
             # --- 1. HEADER ---
             with header_spot.container():
