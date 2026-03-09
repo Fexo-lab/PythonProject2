@@ -85,14 +85,26 @@ def display_ml_training_page(params=None):
     col_t1, col_t2 = st.columns(2)
     max_cycles = col_t1.slider(
         "Max Cycles",
-        100, 10000, 1000,
-        help="Stop training after this many cycles (safety limit for long runs)"
+        100, 100000, 50000,
+        help="Stop training after this many cycles (safety limit for long runs). 10h ≈ 50k cycles"
     )
-    target_quality = col_t2.slider(
-        "Target Quality Score",
-        0.0, 1.0, 0.75, 0.05,
-        help="Stop early when reaching this quality score (0-100%)"
+    
+    # Stop Mode selection
+    stop_mode = col_t2.radio(
+        "Stop Mode",
+        ["Smart Checkpoint (1000 cycles)", "Quality Target", "Never (Until Max)"],
+        help="Smart Checkpoint: Pause/Resume every 1000 cycles (Best for 10h+ runs)\nQuality Target: Stop when reaching target\nNever: Run until max cycles (no early stopping)"
     )
+    
+    # Target quality (only shown if Quality Target mode)
+    target_quality = 0.75
+    if stop_mode == "Quality Target":
+        target_quality = col_t2.slider(
+            "Target Quality Score",
+            0.0, 1.0, 0.75, 0.05,
+            help="Stop early when reaching this quality score (0-100%)",
+            key="target_quality_slider"
+        )
 
     training_active = st.checkbox("🚀 Start Evolution")
 
@@ -132,6 +144,8 @@ def display_ml_training_page(params=None):
         stagnation_counter = 0
         current_max_fitness = -np.inf
         cycle = 0
+        checkpoint_count = 0
+        checkpoint_interval = 1000  # Every 1000 cycles
 
         while training_active:
             cycle += 1
@@ -143,11 +157,23 @@ def display_ml_training_page(params=None):
             
             curr, is_better = core.run_cycle(train_df, test_df, punishment_pips, cycle, stagnation_counter)
             
-            # Early stopping if quality target reached
+            # Smart Checkpoint Logic (instead of early stopping)
             quality = curr.get('quality_score', 0)
-            if quality >= target_quality and cycle > 50:  # At least 50 cycles
+            
+            if stop_mode == "Smart Checkpoint (1000 cycles)" and cycle % checkpoint_interval == 0:
+                # Smart checkpoint: pause and resume
+                checkpoint_count += 1
+                st.info(f"💾 Checkpoint #{checkpoint_count} reached at cycle {cycle}. Pausing for 5 seconds...")
+                time.sleep(5)
+                st.info(f"▶️ Resuming training from cycle {cycle}...")
+                time.sleep(0.5)
+            
+            # Early stopping if quality target reached (only in Quality Target mode)
+            elif stop_mode == "Quality Target" and quality >= target_quality and cycle > 50:
                 st.success(f"✅ Target quality {target_quality:.0%} reached at cycle {cycle}. Training complete!")
                 break
+            
+            # Never mode: just keep training until max_cycles
 
             fitness_val = curr['total_fit']
             record_label = None
