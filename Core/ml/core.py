@@ -16,8 +16,9 @@ class EvolutionCore:
 
     def _initialize_population(self):
         # DNA consists of: 9 Weights + 9 Biases + Hyperparameter (max_depth, n_estimators)
+        # INCREASED population from 15 to 36 for better diversity
         pop = []
-        for _ in range(15):
+        for _ in range(36):
             dna = {
                 'weights': np.ones(self.features_count),                           # Start at 1.0 (neutral multiplier)
                 'biases': np.zeros(self.features_count),                           # Start at 0.0 (no bias offset)
@@ -67,7 +68,8 @@ class EvolutionCore:
                     'train_fit': curr['train_fit']
                 }, f)
 
-        self.population = Evolver.evolve_custom(fitness_scores)
+        # Pass stagnation_counter to enable adaptive mutation
+        self.population = Evolver.evolve_custom(fitness_scores, stagnation_count=stagnation_counter)
         return curr, is_better
 
     def _evaluate_population(self, population, X_train, y_train, pips_train, X_test, y_test, pips_test):
