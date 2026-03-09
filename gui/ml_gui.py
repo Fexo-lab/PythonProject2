@@ -80,6 +80,19 @@ def display_ml_training_page(params=None):
 
     selected_csv = st.selectbox("Asset for Training:", csv_files)
     new_model_name = st.text_input("Model Name:", "silver_v9_walkforward")
+    
+    # Training Duration Limits
+    col_t1, col_t2 = st.columns(2)
+    max_cycles = col_t1.slider(
+        "Max Cycles",
+        100, 10000, 1000,
+        help="Stop training after this many cycles (safety limit for long runs)"
+    )
+    target_quality = col_t2.slider(
+        "Target Quality Score",
+        0.0, 1.0, 0.75, 0.05,
+        help="Stop early when reaching this quality score (0-100%)"
+    )
 
     training_active = st.checkbox("🚀 Start Evolution")
 
@@ -122,7 +135,19 @@ def display_ml_training_page(params=None):
 
         while training_active:
             cycle += 1
+            
+            # Safety checks for long training runs
+            if cycle > max_cycles:
+                st.warning(f"⏹️ Reached max cycles ({max_cycles}). Training stopped.")
+                break
+            
             curr, is_better = core.run_cycle(train_df, test_df, punishment_pips, cycle, stagnation_counter)
+            
+            # Early stopping if quality target reached
+            quality = curr.get('quality_score', 0)
+            if quality >= target_quality and cycle > 50:  # At least 50 cycles
+                st.success(f"✅ Target quality {target_quality:.0%} reached at cycle {cycle}. Training complete!")
+                break
 
             fitness_val = curr['total_fit']
             record_label = None

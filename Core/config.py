@@ -17,7 +17,12 @@ FEATURE_COLS = [
 POPULATION_SIZE = 15
 MUTATION_RATE = 0.7
 DEFIBRILLATOR_LEVEL = 0.1
-STAGNATION_THRESHOLD = 20 # Cycles without record before increasing mutations
+STAGNATION_THRESHOLD = 40  # Cycles without record before increasing mutations (was 20 - too aggressive for long runs)
+
+# Training Safeguards (for 10h+ training sessions)
+MAX_FITNESS_PATIENCE = 100  # Stop early if no improvement after N cycles
+MIN_TRADES_FOR_MODEL_SAVE = 30  # Only save model if it generates 30+ trades
+MAX_TRAINING_CYCLES = 10000  # Failsafe to prevent infinite loops
 
 # Model & Data Paths
 MODELS_DIR = "models"
