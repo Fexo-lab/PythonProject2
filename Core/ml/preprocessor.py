@@ -5,10 +5,17 @@ import os
 from Core.config import FEATURE_COLS, DATASETS_DIR
 
 
-def get_feature_matrix(df):
+def get_feature_matrix(df, return_raw_atr=False):
     """
     Calculates all technical indicators and normalizes them
     so that DNA weighting works mathematically correctly.
+    
+    Args:
+        df: Raw price dataframe
+        return_raw_atr: If True, also return raw (non-normalized) ATR for stop loss
+    
+    Returns:
+        (processed_df, feature_cols) or (processed_df, feature_cols, raw_atr) if return_raw_atr=True
     """
     df = df.copy()
 
@@ -23,7 +30,12 @@ def get_feature_matrix(df):
         (df['High'] - df['Close'].shift()).abs(),
         (df['Low'] - df['Close'].shift()).abs()
     ], axis=1).max(axis=1)
-    df['atr'] = tr.rolling(window=14).mean() / (df['Close'] + 1e-9)
+    
+    # Store RAW ATR before normalization (for stop loss use)
+    atr_raw = tr.rolling(window=14).mean()
+    
+    # Normalized ATR for feature engineering
+    df['atr'] = atr_raw / (df['Close'] + 1e-9)
 
     # EMA Distances
     for period in [20, 50, 100]:
@@ -48,7 +60,14 @@ def get_feature_matrix(df):
     df_feat = df[FEATURE_COLS].copy()
     df[FEATURE_COLS] = (df_feat - df_feat.mean()) / (df_feat.std() + 1e-9)
 
-    return df.dropna(), FEATURE_COLS
+    df_clean = df.dropna()
+    
+    if return_raw_atr:
+        # Return aligned raw ATR values matching the cleaned dataframe
+        atr_raw_aligned = atr_raw.loc[df_clean.index].values
+        return df_clean, FEATURE_COLS, atr_raw_aligned
+    else:
+        return df_clean, FEATURE_COLS
 
 
 def create_simulated_training_set(csv_name, max_sl_pct, punishment_pips=0, use_atr_sl=True, atr_multiplier=1.5):
@@ -70,26 +89,17 @@ def create_simulated_training_set(csv_name, max_sl_pct, punishment_pips=0, use_a
         return None, None
 
     df_raw = pd.read_csv(file_path, index_col=0, parse_dates=True)
-    # Important: get_feature_matrix provides normalized data
-    df, _ = get_feature_matrix(df_raw)
-
-    # Calculate RAW (non-normalized) ATR for stop loss calculations
-    # The ATR in get_feature_matrix is normalized (divided by Close) for feature engineering
-    # But for stop loss, we need the actual ATR in price units
+    
+    # Get feature matrix with raw ATR for stop loss calculations
+    # Note: get_feature_matrix returns normalized features for ML, plus raw ATR for stops
     if use_atr_sl:
-        tr_raw = pd.concat([
-            (df_raw['High'] - df_raw['Low']),
-            (df_raw['High'] - df_raw['Close'].shift()).abs(),
-            (df_raw['Low'] - df_raw['Close'].shift()).abs()
-        ], axis=1).max(axis=1)
-        atr_raw = tr_raw.rolling(window=14).mean()  # RAW ATR in points, not normalized
-        df['atr_raw'] = atr_raw.values  # Store for later use
+        df, _, atr_raw_values = get_feature_matrix(df_raw, return_raw_atr=True)
     else:
-        df['atr_raw'] = None
+        df, _ = get_feature_matrix(df_raw, return_raw_atr=False)
+        atr_raw_values = None
     
     labels, pip_results = [], []
     prices = df['Close'].values
-    atr_raw_values = df['atr_raw'].values if use_atr_sl else None
 
     # Independent BUY/SELL Labeling (Not "SELL only if BUY fails")
     for i in range(len(prices)):
