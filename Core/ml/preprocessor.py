@@ -137,9 +137,9 @@ def create_simulated_training_set(csv_name, max_sl_pct, punishment_pips=0, use_a
             
             if p <= curr_sl_buy:
                 buy_pips = (curr_sl_buy - entry_p) / entry_p * 1000 - punishment_pips
-                if buy_pips > 0:  # Only if profitable after entry cost
-                    best_label = 1
-                    best_pip_diff = buy_pips
+                # Mark BUY regardless of profit/loss - need real data for PF calculation
+                best_label = 1
+                best_pip_diff = buy_pips
                 break
 
         # ===== SELL SCENARIO (Label 2) - ATR-based - INDEPENDENT of BUY =====
@@ -169,11 +169,10 @@ def create_simulated_training_set(csv_name, max_sl_pct, punishment_pips=0, use_a
             
             if p >= curr_sl_sell:
                 sell_pips = (entry_p - curr_sl_sell) / entry_p * 1000 - punishment_pips
-                if sell_pips > 0:  # Only if profitable after entry cost
-                    # Prefer SELL over BUY if it's more profitable
-                    if sell_pips > best_pip_diff:
-                        best_label = 2
-                        best_pip_diff = sell_pips
+                # Mark SELL regardless of profit/loss - Prefer SELL over BUY if it's more profitable
+                if sell_pips > best_pip_diff:
+                    best_label = 2
+                    best_pip_diff = sell_pips
                 break
 
         labels.append(best_label)
